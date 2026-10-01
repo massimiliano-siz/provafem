@@ -41,10 +41,14 @@ with open(base + ".inp") as f:
         if on:
             v = L.split(","); _n[int(v[0])] = (float(v[1]), float(v[2]))
 _A = np.radians(P["ang"])
-def _onsym(nn):
+def _p0(nn):
+    return abs(_n[nn][1]) < 1e-5
+def _p1(nn):
     x, y = _n[nn]
-    return abs(y) < 1e-5 or abs(-np.sin(_A) * x + np.cos(_A) * y) < 1e-5
-tris = np.array([t for t in tris if not all(_onsym(v) for v in t)])
+    return abs(-np.sin(_A) * x + np.cos(_A) * y) < 1e-5
+# rimuovi solo le facce che giacciono interamente su UNO dei due piani (al centro un triangolo
+# puo' toccare entrambi i piani ma appartiene alla faccia superiore/inferiore)
+tris = np.array([t for t in tris if not (all(_p0(v) for v in t) or all(_p1(v) for v in t))])
 nid = np.unique(tris)
 loc = {n: i for i, n in enumerate(nid)}
 T = np.vectorize(loc.get)(tris).astype(np.uint32)

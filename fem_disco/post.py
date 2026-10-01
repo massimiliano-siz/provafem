@@ -57,7 +57,8 @@ def principal(s):
     return np.array(out)
 
 
-steps = sorted({(b["step"], b["time"]) for b in blocks if b["name"] == "DISP"})
+steps = sorted({(b["step"], b["time"]) for b in blocks if b["name"] == "DISP" and b["time"] > 0.999})
+PB = lambda t: round(max(0.0, t - 1.0) * P["p"] * 10, 3)
 print("output disponibili:", steps)
 res = []
 for st, t in steps:
@@ -65,7 +66,7 @@ for st, t in steps:
     S = nodal(field("STRESS", t, st), D, 6)
     sv = vm(S)
     pr = principal(S)
-    pbar = 0.0 if st == 1 else P["p"] * t * 10
+    pbar = PB(t)
     bot = np.abs(z) < 1e-4
     top = np.abs(z - P["t"]) < 1e-4
     # sollevamento in corrispondenza dell'O-ring (fondo disco, R 203.5-208.5)
@@ -94,7 +95,7 @@ for st, t in steps:
 json.dump(res, open(name + "_res.json", "w"), indent=1)
 
 # ---------------- grafici (ultimo istante) ----------------
-st, t = steps[-1]
+st, t = min(steps, key=lambda s: abs(PB(s[1]) - 2.0))
 U = nodal(field("DISP", t, st), D, 3)
 S = nodal(field("STRESS", t, st), D, 6)
 sv = vm(S)
@@ -125,14 +126,14 @@ for ax, (sel, val, lab, cmap) in zip(axs, [
         ph = np.linspace(0, 2 * np.pi, 300); ax.plot(rr_ * np.cos(ph), rr_ * np.sin(ph), "w", ls=ls, lw=0.8)
     ax.set_aspect("equal"); ax.set_title(lab, fontsize=10); ax.set_xticks([]); ax.set_yticks([])
 fig.suptitle("DiscoPCU HDPE — p = %.1f bar, precarico %.1f kN/bullone (-- O-ring R%.1f, : cerchio bulloni R%.0f)"
-             % (P["p"] * 10, P["F"] / 1e3, P["Rseal"], P["Rb"]))
+             % (PB(t), P["F"] / 1e3, P["Rseal"], P["Rb"]))
 fig.tight_layout(); fig.savefig(name + "_mappe.png", dpi=130)
 
 # profili radiali
 fig, ax = plt.subplots(1, 2, figsize=(13, 4.6))
 for st_, t_ in steps:
     U_ = nodal(field("DISP", t_, st_), D, 3); S_ = nodal(field("STRESS", t_, st_), D, 6); sv_ = vm(S_)
-    pb = 0 if st_ == 1 else P["p"] * t_ * 10
+    pb = PB(t_)
     for zz, ls in ((0.0, "-"), (P["t"], "--")):
         sel = (np.abs(z - zz) < 1e-4) & (np.abs(xyz[:, 1] - np.tan(A / 2) * xyz[:, 0]) < 2.5)  # raggio a 4.5°
         o = np.argsort(r[sel])
@@ -159,7 +160,7 @@ for ax, (st_, t_) in zip(np.atleast_1d(axs), steps):
     ph = np.linspace(0, 2 * np.pi, 100)
     for rr_ in (P["rh"], P["rw_out"]):
         ax.plot(rr_ * np.cos(ph), rr_ * np.sin(ph), "c", lw=0.7)
-    ax.set_aspect("equal"); ax.set_title("pressione sotto rondella [MPa]\n%s" % ("solo precarico" if st_ == 1 else "%.1f bar" % (P["p"] * t_ * 10)), fontsize=9)
+    ax.set_aspect("equal"); ax.set_title("pressione sotto rondella [MPa]\n%s" % ("solo precarico" if PB(t_) == 0 else "%.1f bar" % PB(t_)), fontsize=9)
     ax.set_xlabel("radiale [mm] (→ esterno)")
 fig.tight_layout(); fig.savefig(name + "_rondella.png", dpi=130)
 print("ok")

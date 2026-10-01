@@ -226,8 +226,9 @@ function legend(lo,hi,c){
   document.getElementById('legend').innerHTML = `<div><b>${F.label}</b> [${F.unit}] · ${c.label}</div><div class="bar" style="background:${grad()}"></div><div class="ticks"><span>${fmt(lo,st.f==='uz'?1:1)}</span><span>${fmt((lo+hi)/2)}</span><span>${fmt(hi)}</span></div>${extra}`;
 }
 function summary(c){
-  const s = c.summary, seal = s.seal_r && (s.seal_r[0] < P.Rb - P.rw_out);
-  const sealTxt = s.seal_r ? `contatto continuo R ${fmt(s.seal_r[0],0)}–${fmt(s.seal_r[1],0)}` : 'nessun anello continuo';
+  const s = c.summary, seal = !!s.seal_r;
+  const sealTxt = s.seal_r ? `anello continuo a tenuta prima dei fori: R ${fmt(s.seal_r[0],0)}–${fmt(s.seal_r[1],0)} mm`
+    : 'nessun anello continuo prima dei fori viti' + (s.seal_runs.length ? ` (solo R ${s.seal_runs.map(r=>fmt(r[0],0)+'–'+fmt(r[1],0)).join(', ')} mm)` : '');
   document.getElementById('summary').innerHTML = `
     <tr><td>Freccia al centro</td><td class="v">${fmt(s.uz_c,2)} mm</td></tr>
     <tr><td>Distacco al bordo interno guarnizione (Ø400)</td><td class="v">${fmt(s.lift_in,2)} mm</td></tr>

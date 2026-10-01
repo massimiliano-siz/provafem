@@ -93,8 +93,20 @@ for fn, t, lab in cases:
                 vm_plate=float(vm[away].max()),
                 F_bolt=float(-np.mean(S[wz, 2]) * np.pi * (P["rw_out"] ** 2 - P["rh"] ** 2) / 1e3) if wz.any() else None,
                 p_washer=float(-np.mean(S[wz, 2])) if wz.any() else None,
-                lift_in=float(U[bot & (rr < P["Rseal"] + 3), 2].max()),
-                seal_r=[min(band), max(band)] if band else None)
+                lift_in=float(U[bot & (rr > P["Rseal"] - 0.5) & (rr < P["Rseal"] + 3), 2].max()),
+                seal_r=None, seal_runs=[])
+    # fasce radiali contigue con contatto continuo sulla circonferenza
+    runs = []
+    for b_ in band:
+        if runs and abs(b_ - runs[-1][1] - 2) < 1e-6:
+            runs[-1][1] = b_
+        else:
+            runs.append([b_, b_])
+    summ["seal_runs"] = [[a - 1, b_ + 1] for a, b_ in runs]
+    # tiene se un anello continuo con cp > p si chiude PRIMA dei fori viti (R < Rb - rh)
+    hole_in = P["Rb"] - P["rh"]
+    inner = [r_ for r_ in summ["seal_runs"] if r_[0] < hole_in]
+    summ["seal_r"] = [inner[0][0], hole_in] if inner else None
     summ["SF"] = 23.0 / summ["vm_plate"]
     pbar = round(max(0.0, t - 1.0) * json.load(open(fn + "_info.json"))["P"]["p"] * 10, 2)
     out["cases"].append(dict(label=lab, p_bar=pbar, U=b64(U, np.float32), vm=b64(vm, np.float32), cp=b64(cp, np.float32), summary=summ))

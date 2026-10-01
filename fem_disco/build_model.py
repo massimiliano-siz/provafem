@@ -220,7 +220,10 @@ with open(out + ".inp", "w") as f:
 *SURFACE INTERACTION,NAME=SI
 *SURFACE BEHAVIOR,PRESSURE-OVERCLOSURE=LINEAR
 2.e4,0.01
-*CONTACT PAIR,INTERACTION=SI,TYPE=SURFACE TO SURFACE
+*SURFACE INTERACTION,NAME=SIG
+*SURFACE BEHAVIOR,PRESSURE-OVERCLOSURE=LINEAR
+{KG},0.001
+*CONTACT PAIR,INTERACTION=SIG,TYPE=SURFACE TO SURFACE
 SDBOT,SFTOP
 *CONTACT PAIR,INTERACTION=SI,TYPE=SURFACE TO SURFACE
 SDTOP,SWBOT
@@ -267,7 +270,7 @@ S,E
 *CONTACT FILE,TIME POINTS=TP
 CSTR,CDIS
 *END STEP
-""".format(E=P["E"], nu=P["nu"], REF=REF, ROT=ROT, Fh=-P["F"] / 2, p=P["p"], RADN=radn))
+""".format(E=P["E"], nu=P["nu"], REF=REF, ROT=ROT, Fh=-P["F"] / 2, p=P["p"], RADN=radn, KG=P.get("Kg", 2.e4)))
 
 json.dump({"P": P, "nodes": len(used), "elems": {k: len(v) for k, v in elems.items()},
            "faces": dict(press=len(disc_bot_in), dbot=len(disc_bot_out), dtop=len(disc_top_w),

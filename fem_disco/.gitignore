@@ -11,3 +11,5 @@ __pycache__/
 pre*
 axi*.json
 low_info.json
+*_info.json
+!disco_info.json

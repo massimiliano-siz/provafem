@@ -11,3 +11,4 @@ __pycache__/
 pre*
 *.png
 *_res.json
+axi*.json

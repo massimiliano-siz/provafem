@@ -1,0 +1,10 @@
+*.inp
+*.msh
+*.frd
+*.dat
+*.sta
+*.cvg
+*.12d
+*.log
+spooles.out
+__pycache__/

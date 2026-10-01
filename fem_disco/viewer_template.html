@@ -1,0 +1,284 @@
+<title>DiscoPCU 25 mm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: banco di prova a tutta altezza — vista 3D a sinistra, pannello strumenti a destra (sotto, su telefono) */
+:root{
+  --bg:#eef0f2; --panel:#f8f9fa; --ink:#1b232b; --muted:#5b6670; --line:#d5dade;
+  --accent:#1f6fb2; --warn:#c2410c; --ok:#2f7d4f; --canvas:#e3e7ea;
+  --f-ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12171c; --panel:#182027; --ink:#e3e8ec; --muted:#93a0ab; --line:#2a343d;
+  --accent:#5aa6e6; --warn:#f08a4b; --ok:#5fc08a; --canvas:#0e1317; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171c; --panel:#182027; --ink:#e3e8ec; --muted:#93a0ab; --line:#2a343d;
+  --accent:#5aa6e6; --warn:#f08a4b; --ok:#5fc08a; --canvas:#0e1317; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:14px;margin:0}
+.app{display:grid;grid-template-columns:minmax(0,1fr) 340px;height:100%;min-height:0}
+#view{position:relative;background:var(--canvas);min-height:0;overflow:hidden}
+#view canvas{display:block;width:100%;height:100%;touch-action:none}
+.panel{background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding-block:16px;padding-inline:16px;display:flex;flex-direction:column;gap:18px;min-width:0}
+h1{font-size:17px;font-weight:600;margin:0;text-wrap:balance}
+.sub{color:var(--muted);font-size:12.5px;margin-top:4px;line-height:1.45}
+.lab{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;font-weight:500}
+.seg{display:flex;flex-wrap:wrap;gap:4px}
+.seg button{font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:4px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.seg button:focus-visible,.chk input:focus-visible,input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chks{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
+.sw{width:10px;height:10px;border-radius:2px;flex:none}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:5px 0;border-bottom:1px solid var(--line);vertical-align:top}
+td.v{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:8px}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:10px;color:#fff}
+.pill.bad{background:var(--warn)} .pill.good{background:var(--ok)}
+.legend{position:absolute;left:16px;bottom:16px;background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-size:12px;max-width:calc(100% - 32px)}
+.legend .bar{width:220px;max-width:100%;height:10px;border-radius:2px;margin:6px 0 3px}
+.legend .ticks{display:flex;justify-content:space-between;font-family:var(--f-num);font-variant-numeric:tabular-nums;color:var(--muted)}
+.legend .extra{margin-top:5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.probe{position:absolute;right:16px;top:16px;background:color-mix(in srgb,var(--panel) 92%,transparent);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-family:var(--f-num);font-size:12px;line-height:1.55;font-variant-numeric:tabular-nums}
+.hint{position:absolute;left:16px;top:16px;font-size:12px;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.mono{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.note{font-size:12px;color:var(--muted);line-height:1.5}
+.note b{color:var(--ink);font-weight:500}
+@media (max-width:760px){
+  .app{grid-template-columns:1fr;grid-template-rows:62vh auto;height:auto}
+  .panel{border-left:0;border-top:1px solid var(--line);overflow:visible}
+  html,body{height:auto}
+}
+</style>
+
+<div class="app">
+  <div id="view">
+    <div class="hint">Trascina per ruotare · rotellina per zoom · clic sul disco per leggere i valori</div>
+    <div class="probe" id="probe" hidden></div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <aside class="panel">
+    <div>
+      <h1>DiscoPCU HDPE 25 mm su guarnizione EPDM 2 mm</h1>
+      <div class="sub">FEM non lineare (grandi spostamenti), contatto disco–guarnizione e disco–rondella. 20 viti M10, rondelle Ø10,5/20, precarico 3 kN. Pressione interna su Ø400.</div>
+    </div>
+    <div>
+      <div class="lab">Caso di carico</div>
+      <div class="seg" id="cases"></div>
+    </div>
+    <div>
+      <div class="lab">Grandezza</div>
+      <div class="seg" id="fields"></div>
+    </div>
+    <div>
+      <div class="row"><div class="lab">Amplificazione deformata</div><div class="mono" id="sclab">×1</div></div>
+      <input type="range" id="scale" min="0" max="20" step="1" value="1" aria-label="Amplificazione deformata">
+    </div>
+    <div>
+      <div class="lab">Vista</div>
+      <div class="seg" id="views"></div>
+      <label class="chk" style="margin-top:8px"><input type="checkbox" id="section">Sezione sul diametro (taglia metà disco)</label>
+    </div>
+    <div>
+      <div class="lab">Vincoli e carichi</div>
+      <div class="chks" id="layers"></div>
+    </div>
+    <div>
+      <div class="lab">Risultati del caso</div>
+      <table id="summary"></table>
+    </div>
+    <div class="note">
+      <b>Come leggere i vincoli.</b> Il distributore è un appoggio piano rigido (grigio): il disco può staccarsi ma non penetrarlo. La guarnizione EPDM (nera) è un letto elastico da Ø400 al bordo. Le viti tengono il disco solo tramite le rondelle; la vite è rigida dopo il serraggio. La pressione (frecce blu) spinge il disco verso l'esterno dentro Ø400.<br><br>
+      <b>Simmetria.</b> Il calcolo è fatto su uno spicchio di 9° (in evidenza) e replicato a disco intero.<br><br>
+      <b>Freccia.</b> Zero = posizione del disco appena montato; positivo = verso l'esterno, via dal distributore.
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(function(){
+const D = JSON.parse(document.getElementById('data').textContent);
+const P = D.P, A = P.ang*Math.PI/180, YIELD = 23;
+const dec = (s, T) => { const b = atob(s), u = new Uint8Array(b.length); for (let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return new T(u.buffer); };
+const X = dec(D.X, Float32Array), TR = dec(D.T, Uint32Array), n = D.n, nt = TR.length/3;
+D.cases.forEach(c => { c.Ua = dec(c.U, Float32Array); c.vma = dec(c.vm, Float32Array); c.cpa = dec(c.cp, Float32Array); });
+const COPIES = []; for (let k=0;k<20;k++) for (const s of [1,-1]) COPIES.push({s, rot:2*k*A});
+const NC = COPIES.length;
+
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({antialias:true}); renderer.localClippingEnabled = true;
+const clip = new THREE.Plane(new THREE.Vector3(0,1,0), 0); const CLIPS = [];
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
+view.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(35, 1, 1, 10000);
+camera.up.set(0,0,1); camera.position.set(620,-760,520);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.target.set(0,0,0); controls.enableDamping = true;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.75));
+const dl = new THREE.DirectionalLight(0xffffff, 0.55); dl.position.set(300,-400,800); scene.add(dl);
+const dl2 = new THREE.DirectionalLight(0xffffff, 0.25); dl2.position.set(-300,300,-500); scene.add(dl2);
+
+// ---- disco (40 copie del settore) ----
+const pos = new Float32Array(NC*n*3), col = new Float32Array(NC*n*3), idx = new Uint32Array(NC*nt*3);
+for (let c=0;c<NC;c++){ const o=c*n, flip = COPIES[c].s<0; for (let t=0;t<nt;t++){ const b=c*nt*3+3*t; idx[b]=TR[3*t]+o; idx[b+1]=TR[3*t+(flip?2:1)]+o; idx[b+2]=TR[3*t+(flip?1:2)]+o; } }
+const geo = new THREE.BufferGeometry();
+geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+geo.setAttribute('color', new THREE.BufferAttribute(col,3));
+geo.setIndex(new THREE.BufferAttribute(idx,1));
+const disc = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({vertexColors:true, side:THREE.DoubleSide, clippingPlanes:CLIPS}));
+scene.add(disc);
+
+// ---- vincoli e carichi ----
+const groups = {};
+function addGroup(key, label, color, build, on=true){ const g = new THREE.Group(); build(g); g.visible = on; scene.add(g); groups[key] = {g, label, color}; }
+function annulus(r1, r2, z0, h, holes){
+  const sh = new THREE.Shape(); sh.absarc(0,0,r2,0,Math.PI*2,false);
+  const inner = new THREE.Path(); inner.absarc(0,0,r1,0,Math.PI*2,true); sh.holes.push(inner);
+  (holes||[]).forEach(([x,y,r]) => { const p = new THREE.Path(); p.absarc(x,y,r,0,Math.PI*2,true); sh.holes.push(p); });
+  const g = new THREE.ExtrudeGeometry(sh, {depth:h, bevelEnabled:false, curveSegments:96}); g.translate(0,0,z0); return g;
+}
+const boltXY = []; for (let k=0;k<20;k++){ const a = 2*k*A; boltXY.push([P.Rb*Math.cos(a), P.Rb*Math.sin(a)]); }
+addGroup('flange','Distributore (rigido)','#9aa3ab', g => {
+  g.add(new THREE.Mesh(annulus(P.Rseal, P.R+8, -14, 12, boltXY.map(([x,y])=>[x,y,P.rh])),
+    new THREE.MeshLambertMaterial({color:0x9aa3ab, transparent:true, opacity:0.55})));
+});
+addGroup('gasket','Guarnizione EPDM','#222222', g => {
+  g.add(new THREE.Mesh(annulus(P.Rseal, P.R, -2, 2, boltXY.map(([x,y])=>[x,y,P.rh])),
+    new THREE.MeshLambertMaterial({color:0x1d1d1d, transparent:true, opacity:0.85})));
+});
+addGroup('press','Pressione interna','#2f7fd0', g => {
+  const step = 40, mat = 0x2f7fd0;
+  for (let x=-P.Rseal+20; x<P.Rseal; x+=step) for (let y=-P.Rseal+20; y<P.Rseal; y+=step){
+    if (Math.hypot(x,y) > P.Rseal-15) continue;
+    g.add(new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(x,y,-60), 52, mat, 12, 7));
+  }
+});
+addGroup('bolts','Viti e rondelle','#c9a227', g => {
+  const wm = new THREE.MeshLambertMaterial({color:0xb8bec4}), bm = new THREE.MeshLambertMaterial({color:0x8a7a3a});
+  boltXY.forEach(([x,y]) => {
+    const w = new THREE.Mesh(annulus(P.rh, P.rw_out, 0, P.tw), wm); w.position.set(x,y,P.t); g.add(w);
+    const sh = new THREE.Mesh(new THREE.CylinderGeometry(4.6,4.6,P.t+30,16), bm); sh.rotation.x = Math.PI/2; sh.position.set(x,y,(P.t-30)/2+P.tw/2); g.add(sh);
+    const hd = new THREE.Mesh(new THREE.CylinderGeometry(9.2,9.2,6.4,6), bm); hd.rotation.x = Math.PI/2; hd.position.set(x,y,P.t+P.tw+3.2); g.add(hd);
+    g.add(new THREE.ArrowHelper(new THREE.Vector3(0,0,-1), new THREE.Vector3(x,y,P.t+60), 44, 0xc9a227, 12, 7));
+  });
+});
+addGroup('sector','Spicchio calcolato','#d0453b', g => {
+  const m = new THREE.LineBasicMaterial({color:0xd0453b});
+  const pts = [new THREE.Vector3(0,0,P.t+0.5), new THREE.Vector3(P.R,0,P.t+0.5)];
+  for (let i=0;i<=20;i++){ const a=A*i/20; pts.push(new THREE.Vector3(P.R*Math.cos(a),P.R*Math.sin(a),P.t+0.5)); }
+  pts.push(new THREE.Vector3(0,0,P.t+0.5));
+  g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), m));
+}, false);
+
+// ---- colormap ----
+const VIR = [[68,1,84],[72,40,120],[62,74,137],[49,104,142],[38,130,142],[31,158,137],[53,183,121],[109,205,89],[180,222,44],[253,231,37]];
+function cmap(t){ t=Math.min(1,Math.max(0,t)); const f=t*(VIR.length-1), i=Math.min(VIR.length-2,Math.floor(f)), u=f-i;
+  const a=VIR[i], b=VIR[i+1]; return [(a[0]+(b[0]-a[0])*u)/255,(a[1]+(b[1]-a[1])*u)/255,(a[2]+(b[2]-a[2])*u)/255]; }
+const OVER = [0.85,0.15,0.55], OPEN = [0.62,0.64,0.66];
+const FIELDS = {
+  uz:{label:'Freccia u_z', unit:'mm'},
+  vm:{label:'von Mises', unit:'MPa'},
+  cp:{label:'Pressione guarnizione', unit:'MPa'},
+};
+let st = {c:0, f:'uz', s:1};
+function fieldVals(c){ return st.f==='uz' ? null : (st.f==='vm' ? c.vma : c.cpa); }
+function range(c){
+  if (st.f==='uz'){ let mn=1e9,mx=-1e9; for(let i=0;i<n;i++){const v=c.Ua[3*i+2]; if(v<mn)mn=v; if(v>mx)mx=v;} return [mn,mx]; }
+  if (st.f==='vm') return [0,YIELD];
+  let mx=0; for(let i=0;i<n;i++) if(c.cpa[i]>mx) mx=c.cpa[i];
+  const s=[...c.cpa].filter(v=>v>0).sort((a,b)=>a-b); const p95 = s.length? s[Math.floor(s.length*0.95)] : 1;
+  return [0, Math.max(0.3, p95)];
+}
+function update(){
+  const c = D.cases[st.c], U = c.Ua, sc = st.s, [lo,hi] = range(c), V = fieldVals(c);
+  for (let k=0;k<NC;k++){
+    const {s,rot} = COPIES[k], cr=Math.cos(rot), sr=Math.sin(rot), o=k*n*3;
+    for (let i=0;i<n;i++){
+      const x=X[3*i]+sc*U[3*i], y=s*(X[3*i+1]+sc*U[3*i+1]), z=X[3*i+2]+sc*U[3*i+2];
+      pos[o+3*i]=x*cr-y*sr; pos[o+3*i+1]=x*sr+y*cr; pos[o+3*i+2]=z;
+      let rgb;
+      if (st.f==='uz') rgb = cmap((U[3*i+2]-lo)/((hi-lo)||1));
+      else if (st.f==='vm') rgb = V[i]>YIELD ? OVER : cmap(V[i]/YIELD);
+      else { const bottom = Math.abs(X[3*i+2])<1e-3 && Math.hypot(X[3*i],X[3*i+1])>=P.Rseal-0.01;
+             rgb = !bottom ? [0.80,0.82,0.84] : (V[i] <= c.p_bar/10 ? OPEN : cmap((V[i])/hi)); }
+      col[o+3*i]=rgb[0]; col[o+3*i+1]=rgb[1]; col[o+3*i+2]=rgb[2];
+    }
+  }
+  geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true;
+  geo.computeVertexNormals(); geo.computeBoundingSphere();
+  legend(lo,hi,c); summary(c);
+  if (st.f==='cp' && groups.gasket.g.visible){ groups.gasket.g.visible=false; syncChecks(); }
+}
+function grad(){ return 'linear-gradient(90deg,'+[0,0.25,0.5,0.75,1].map(t=>{const r=cmap(t);return `rgb(${r.map(v=>Math.round(v*255)).join(',')})`;}).join(',')+')'; }
+const fmt = (v,d=1) => (v==null?'—':v.toLocaleString('it-IT',{minimumFractionDigits:d,maximumFractionDigits:d}));
+function legend(lo,hi,c){
+  const F = FIELDS[st.f]; let extra = '';
+  if (st.f==='vm') extra = `<div class="extra"><span class="sw" style="background:rgb(217,38,140)"></span>oltre lo snervamento (${YIELD} MPa)</div>`;
+  if (st.f==='cp') extra = `<div class="extra"><span class="sw" style="background:rgb(158,163,168)"></span>guarnizione aperta o sotto la pressione del fluido (${fmt(c.p_bar/10,2)} MPa)</div><div class="extra">Visibile ruotando sotto il disco</div>`;
+  document.getElementById('legend').innerHTML = `<div><b>${F.label}</b> [${F.unit}] · ${c.label}</div><div class="bar" style="background:${grad()}"></div><div class="ticks"><span>${fmt(lo,st.f==='uz'?1:1)}</span><span>${fmt((lo+hi)/2)}</span><span>${fmt(hi)}</span></div>${extra}`;
+}
+function summary(c){
+  const s = c.summary, seal = s.seal_r && (s.seal_r[0] < P.Rb - P.rw_out);
+  const sealTxt = s.seal_r ? `contatto continuo R ${fmt(s.seal_r[0],0)}–${fmt(s.seal_r[1],0)}` : 'nessun anello continuo';
+  document.getElementById('summary').innerHTML = `
+    <tr><td>Freccia al centro</td><td class="v">${fmt(s.uz_c,2)} mm</td></tr>
+    <tr><td>Distacco al bordo interno guarnizione (Ø400)</td><td class="v">${fmt(s.lift_in,2)} mm</td></tr>
+    <tr><td>von Mises max (fuori dalle rondelle)</td><td class="v">${fmt(s.vm_plate)} MPa</td></tr>
+    <tr><td>Fattore di sicurezza su ${YIELD} MPa</td><td class="v">${fmt(s.SF,2)}</td></tr>
+    <tr><td>Forza per vite</td><td class="v">${fmt(s.F_bolt,2)} kN</td></tr>
+    <tr><td>Pressione media sotto rondella</td><td class="v">${fmt(s.p_washer)} MPa</td></tr>
+    <tr><td>Tenuta guarnizione<br><span class="note">${sealTxt}</span></td><td class="v">${c.p_bar===0?'<span class="pill good">montaggio</span>':(seal?'<span class="pill good">tiene</span>':'<span class="pill bad">perde dai fori viti</span>')}</td></tr>`;
+}
+// sezione: applica il piano di taglio a tutti i materiali
+function setClip(on){ CLIPS.length = 0; if (on) CLIPS.push(clip); scene.traverse(o => { if (o.material) { o.material.clippingPlanes = CLIPS; o.material.clipShadows = true; o.material.needsUpdate = true; } }); }
+document.getElementById('section').onchange = e => { setClip(e.target.checked); if (e.target.checked) setView('side'); };
+const VIEWS = {iso:[[620,-760,520],'3/4 dall\'alto'], bottom:[[520,-640,-560],'Dal basso (lato pressione)'], side:[[0,-1000,40],'Di fianco']};
+function setView(k){ const v=VIEWS[k][0]; camera.position.set(...v); controls.target.set(0,0,k==='side'?0:0); controls.update();
+  [...document.getElementById('views').children].forEach(b=>b.setAttribute('aria-pressed', String(b.id==='btn-views-'+k))); }
+// ---- UI ----
+function seg(el, items, cur, onpick){
+  el.innerHTML=''; items.forEach(([k,l]) => { const b=document.createElement('button'); b.type='button'; b.id='btn-'+el.id+'-'+k; b.textContent=l; b.setAttribute('aria-pressed', String(k===cur)); b.onclick=()=>{ [...el.children].forEach(x=>x.setAttribute('aria-pressed','false')); b.setAttribute('aria-pressed','true'); onpick(k); }; el.appendChild(b); });
+}
+seg(document.getElementById('views'), Object.entries(VIEWS).map(([k,v])=>[k,v[1]]), 'iso', k=>setView(k));
+seg(document.getElementById('cases'), D.cases.map((c,i)=>[i,c.label]), st.c, k=>{st.c=k; update();});
+seg(document.getElementById('fields'), Object.entries(FIELDS).map(([k,v])=>[k,v.label]), st.f, k=>{st.f=k; update(); if (k==='cp') setView('bottom');});
+const lay = document.getElementById('layers');
+Object.entries(groups).forEach(([k,o]) => { const l=document.createElement('label'); l.className='chk';
+  l.innerHTML=`<input type="checkbox" id="lay-${k}" ${o.g.visible?'checked':''}><span class="sw" style="background:${o.color}"></span>${o.label}`;
+  l.querySelector('input').onchange = e => { o.g.visible = e.target.checked; }; lay.appendChild(l); });
+function syncChecks(){ Object.entries(groups).forEach(([k,o]) => { document.getElementById('lay-'+k).checked = o.g.visible; }); }
+const scEl = document.getElementById('scale');
+scEl.oninput = () => { st.s = +scEl.value; document.getElementById('sclab').textContent = '×'+st.s; update(); };
+// ---- probe ----
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(); let down=null;
+renderer.domElement.addEventListener('pointerdown', e => { down=[e.clientX,e.clientY]; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!down || Math.hypot(e.clientX-down[0], e.clientY-down[1]) > 4) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  mouse.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
+  ray.setFromCamera(mouse, camera); const hit = ray.intersectObject(disc)[0]; const pr = document.getElementById('probe');
+  if (!hit){ pr.hidden = true; return; }
+  const f = hit.face, cand=[f.a,f.b,f.c]; let best=cand[0], bd=1e9;
+  cand.forEach(v => { const d = hit.point.distanceTo(new THREE.Vector3(pos[3*v],pos[3*v+1],pos[3*v+2])); if (d<bd){bd=d;best=v;} });
+  const i = best % n, c = D.cases[st.c];
+  const R = Math.hypot(X[3*i],X[3*i+1]), face = Math.abs(X[3*i+2]-P.t)<1e-3 ? 'faccia esterna' : (Math.abs(X[3*i+2])<1e-3 ? 'faccia lato pressione' : 'bordo/foro');
+  pr.innerHTML = `R ${fmt(R,1)} mm · ${face}<br>u_z ${fmt(c.Ua[3*i+2],2)} mm<br>von Mises ${fmt(c.vma[i],1)} MPa` + (face==='faccia lato pressione' && R>=P.Rseal ? `<br>p. guarnizione ${fmt(c.cpa[i],2)} MPa` : '');
+  pr.hidden = false;
+});
+function resize(){ const w=view.clientWidth, h=view.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(view);
+function bg(){ renderer.setClearColor(new THREE.Color(css('--canvas')||'#e3e7ea')); }
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', bg);
+new MutationObserver(bg).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+bg(); resize(); update();
+(function loop(){ controls.update(); renderer.render(scene,camera); requestAnimationFrame(loop); })();
+})();
+</script>

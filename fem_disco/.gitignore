@@ -10,3 +10,4 @@ spooles.out
 __pycache__/
 pre*
 axi*.json
+low_info.json

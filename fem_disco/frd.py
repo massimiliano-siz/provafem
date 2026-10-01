@@ -18,7 +18,7 @@ def read_frd(path):
                 i += 1
         elif L.startswith("  100C"):
             t = float(L[12:24])
-            step = int(L[58:63]) if len(L) > 63 else 0
+            step = int(L.split()[-1])
             i += 1
             name = lines[i][5:13].strip()
             comps = []

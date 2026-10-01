@@ -8,3 +8,6 @@
 *.log
 spooles.out
 __pycache__/
+pre*
+*.png
+*_res.json

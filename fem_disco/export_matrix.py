@@ -111,7 +111,8 @@ configs = {}
 for mat in MATS:
     for t in THK:
         name = "%s%d" % (mat, t)
-        if os.path.exists(name + ".frd") and os.path.getsize(name + ".frd") > 0:
+        done = os.path.exists(name + ".log") and "Job finished" in open(name + ".log").read()
+        if done:
             c = export(name, mat)
             if c["cases"]:
                 configs[name] = c

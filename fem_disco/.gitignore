@@ -16,3 +16,5 @@ low_info.json
 viewer_data.json
 jobs.txt
 matrix.log
+*_info.json
+!disco_info.json

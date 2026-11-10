@@ -1,4 +1,4 @@
-<title>DiscoPCU 25 mm</title>
+<title>DiscoPCU HDPE e PMMA</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -62,8 +62,17 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   </div>
   <aside class="panel">
     <div>
-      <h1>DiscoPCU HDPE 25 mm su guarnizione EPDM 2 mm</h1>
+      <h1 id="title">DiscoPCU su guarnizione EPDM 2 mm</h1>
       <div class="sub">FEM non lineare (grandi spostamenti), contatto disco–guarnizione e disco–rondella. 20 viti M10, rondelle Ø10,5/20, precarico 3 kN. Pressione interna su Ø400.</div>
+    </div>
+    <div>
+      <div class="lab">Materiale</div>
+      <div class="seg" id="mats"></div>
+      <div class="note" id="matnote" style="margin-top:6px"></div>
+    </div>
+    <div>
+      <div class="lab">Spessore disco</div>
+      <div class="seg" id="thks"></div>
     </div>
     <div>
       <div class="lab">Caso di carico</div>
@@ -90,10 +99,15 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       <div class="lab">Risultati del caso</div>
       <table id="summary"></table>
     </div>
+    <div>
+      <div class="lab">Confronto spessori · stesso materiale e caso</div>
+      <table id="compare"></table>
+    </div>
     <div class="note">
       <b>Come leggere i vincoli.</b> Il distributore è un appoggio piano rigido (grigio): il disco può staccarsi ma non penetrarlo. La guarnizione EPDM (nera) è un letto elastico da Ø400 al bordo. Le viti tengono il disco solo tramite le rondelle; la vite è rigida dopo il serraggio. La pressione (frecce blu) spinge il disco verso l'esterno dentro Ø400.<br><br>
       <b>Simmetria.</b> Il calcolo è fatto su uno spicchio di 9° (in evidenza) e replicato a disco intero.<br><br>
-      <b>Freccia.</b> Zero = posizione del disco appena montato; positivo = verso l'esterno, via dal distributore.
+      <b>Freccia.</b> Zero = posizione del disco appena montato; positivo = verso l'esterno, via dal distributore.<br><br>
+      <b>Tenuta.</b> «Tiene» se, prima dei fori viti, resta un anello continuo di guarnizione con pressione di contatto maggiore della pressione del fluido.
     </div>
   </aside>
 </div>
@@ -104,12 +118,16 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <script>
 (function(){
 const D = JSON.parse(document.getElementById('data').textContent);
-const P = D.P, A = P.ang*Math.PI/180, YIELD = 23;
+const MATS = D.mats;
 const dec = (s, T) => { const b = atob(s), u = new Uint8Array(b.length); for (let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return new T(u.buffer); };
-const X = dec(D.X, Float32Array), TR = dec(D.T, Uint32Array), n = D.n, nt = TR.length/3;
-D.cases.forEach(c => { c.Ua = dec(c.U, Float32Array); c.vma = dec(c.vm, Float32Array); c.cpa = dec(c.cp, Float32Array); });
-const COPIES = []; for (let k=0;k<20;k++) for (const s of [1,-1]) COPIES.push({s, rot:2*k*A});
-const NC = COPIES.length;
+Object.values(D.configs).forEach(C => { C.Xa = dec(C.X, Float32Array); C.Ta = dec(C.T, Uint32Array);
+  C.cases.forEach(c => { c.Ua = dec(c.U, Float32Array); c.vma = dec(c.vm, Float32Array); c.s1a = dec(c.s1, Float32Array); c.cpa = dec(c.cp, Float32Array); }); });
+const KEYS = Object.keys(D.configs);
+const thkOf = m => KEYS.filter(k => D.configs[k].mat===m).map(k => D.configs[k].t).sort((a,b)=>a-b);
+let st = {m: MATS.hdpe ? 'hdpe' : Object.keys(MATS)[0], t: 25, c: 1, f:'uz', s:1};
+if (!thkOf(st.m).includes(st.t)) st.t = thkOf(st.m).slice(-1)[0];
+let CFG, P, A, X, n, NC, pos, col;
+const COPIES_N = 40;
 
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const view = document.getElementById('view');
@@ -126,57 +144,59 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.75));
 const dl = new THREE.DirectionalLight(0xffffff, 0.55); dl.position.set(300,-400,800); scene.add(dl);
 const dl2 = new THREE.DirectionalLight(0xffffff, 0.25); dl2.position.set(-300,300,-500); scene.add(dl2);
 
-// ---- disco (40 copie del settore) ----
-const pos = new Float32Array(NC*n*3), col = new Float32Array(NC*n*3), idx = new Uint32Array(NC*nt*3);
-for (let c=0;c<NC;c++){ const o=c*n, flip = COPIES[c].s<0; for (let t=0;t<nt;t++){ const b=c*nt*3+3*t; idx[b]=TR[3*t]+o; idx[b+1]=TR[3*t+(flip?2:1)]+o; idx[b+2]=TR[3*t+(flip?1:2)]+o; } }
+// ---- disco (40 copie del settore), ricostruito a ogni cambio di configurazione ----
 const geo = new THREE.BufferGeometry();
-geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
-geo.setAttribute('color', new THREE.BufferAttribute(col,3));
-geo.setIndex(new THREE.BufferAttribute(idx,1));
 const disc = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({vertexColors:true, side:THREE.DoubleSide, clippingPlanes:CLIPS}));
 scene.add(disc);
+let COPIES = [];
+function loadConfig(){
+  CFG = D.configs[st.m + st.t]; P = CFG.P; A = P.ang*Math.PI/180; X = CFG.Xa; n = CFG.n;
+  const TR = CFG.Ta, nt = TR.length/3;
+  COPIES = []; for (let k=0;k<20;k++) for (const s of [1,-1]) COPIES.push({s, rot:2*k*A});
+  NC = COPIES.length;
+  pos = new Float32Array(NC*n*3); col = new Float32Array(NC*n*3); const idx = new Uint32Array(NC*nt*3);
+  for (let c=0;c<NC;c++){ const o=c*n, flip = COPIES[c].s<0; for (let t=0;t<nt;t++){ const b=c*nt*3+3*t; idx[b]=TR[3*t]+o; idx[b+1]=TR[3*t+(flip?2:1)]+o; idx[b+2]=TR[3*t+(flip?1:2)]+o; } }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col,3));
+  geo.setIndex(new THREE.BufferAttribute(idx,1));
+  buildGroups();
+  document.getElementById('title').textContent = `DiscoPCU ${MATS[st.m].label} ${st.t} mm su guarnizione EPDM 2 mm`;
+  document.getElementById('matnote').textContent = MATS[st.m].note;
+  if (st.c >= CFG.cases.length) st.c = CFG.cases.length-1;
+  seg(document.getElementById('cases'), CFG.cases.map((c,i)=>[i,c.label]), st.c, k=>{st.c=k; update();});
+}
 
 // ---- vincoli e carichi ----
 const groups = {};
-function addGroup(key, label, color, build, on=true){ const g = new THREE.Group(); build(g); g.visible = on; scene.add(g); groups[key] = {g, label, color}; }
+const vis = {flange:true, gasket:true, press:true, bolts:true, sector:false};
+const META = {flange:['Distributore (rigido)','#9aa3ab'], gasket:['Guarnizione EPDM','#222222'], press:['Pressione interna','#2f7fd0'], bolts:['Viti e rondelle','#c9a227'], sector:['Spicchio calcolato','#d0453b']};
 function annulus(r1, r2, z0, h, holes){
   const sh = new THREE.Shape(); sh.absarc(0,0,r2,0,Math.PI*2,false);
   const inner = new THREE.Path(); inner.absarc(0,0,r1,0,Math.PI*2,true); sh.holes.push(inner);
   (holes||[]).forEach(([x,y,r]) => { const p = new THREE.Path(); p.absarc(x,y,r,0,Math.PI*2,true); sh.holes.push(p); });
   const g = new THREE.ExtrudeGeometry(sh, {depth:h, bevelEnabled:false, curveSegments:96}); g.translate(0,0,z0); return g;
 }
-const boltXY = []; for (let k=0;k<20;k++){ const a = 2*k*A; boltXY.push([P.Rb*Math.cos(a), P.Rb*Math.sin(a)]); }
-addGroup('flange','Distributore (rigido)','#9aa3ab', g => {
-  g.add(new THREE.Mesh(annulus(P.Rseal, P.R+8, -14, 12, boltXY.map(([x,y])=>[x,y,P.rh])),
-    new THREE.MeshLambertMaterial({color:0x9aa3ab, transparent:true, opacity:0.55})));
-});
-addGroup('gasket','Guarnizione EPDM','#222222', g => {
-  g.add(new THREE.Mesh(annulus(P.Rseal, P.R, -2, 2, boltXY.map(([x,y])=>[x,y,P.rh])),
-    new THREE.MeshLambertMaterial({color:0x1d1d1d, transparent:true, opacity:0.85})));
-});
-addGroup('press','Pressione interna','#2f7fd0', g => {
-  const step = 40, mat = 0x2f7fd0;
-  for (let x=-P.Rseal+20; x<P.Rseal; x+=step) for (let y=-P.Rseal+20; y<P.Rseal; y+=step){
-    if (Math.hypot(x,y) > P.Rseal-15) continue;
-    g.add(new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(x,y,-60), 52, mat, 12, 7));
-  }
-});
-addGroup('bolts','Viti e rondelle','#c9a227', g => {
-  const wm = new THREE.MeshLambertMaterial({color:0xb8bec4}), bm = new THREE.MeshLambertMaterial({color:0x8a7a3a});
-  boltXY.forEach(([x,y]) => {
-    const w = new THREE.Mesh(annulus(P.rh, P.rw_out, 0, P.tw), wm); w.position.set(x,y,P.t); g.add(w);
-    const sh = new THREE.Mesh(new THREE.CylinderGeometry(4.6,4.6,P.t+30,16), bm); sh.rotation.x = Math.PI/2; sh.position.set(x,y,(P.t-30)/2+P.tw/2); g.add(sh);
-    const hd = new THREE.Mesh(new THREE.CylinderGeometry(9.2,9.2,6.4,6), bm); hd.rotation.x = Math.PI/2; hd.position.set(x,y,P.t+P.tw+3.2); g.add(hd);
-    g.add(new THREE.ArrowHelper(new THREE.Vector3(0,0,-1), new THREE.Vector3(x,y,P.t+60), 44, 0xc9a227, 12, 7));
-  });
-});
-addGroup('sector','Spicchio calcolato','#d0453b', g => {
-  const m = new THREE.LineBasicMaterial({color:0xd0453b});
-  const pts = [new THREE.Vector3(0,0,P.t+0.5), new THREE.Vector3(P.R,0,P.t+0.5)];
-  for (let i=0;i<=20;i++){ const a=A*i/20; pts.push(new THREE.Vector3(P.R*Math.cos(a),P.R*Math.sin(a),P.t+0.5)); }
-  pts.push(new THREE.Vector3(0,0,P.t+0.5));
-  g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), m));
-}, false);
+function buildGroups(){
+  Object.values(groups).forEach(o => scene.remove(o.g));
+  const boltXY = []; for (let k=0;k<20;k++){ const a = 2*k*A; boltXY.push([P.Rb*Math.cos(a), P.Rb*Math.sin(a)]); }
+  const B = {
+    flange: g => g.add(new THREE.Mesh(annulus(P.Rseal, P.R+8, -14, 12, boltXY.map(([x,y])=>[x,y,P.rh])), new THREE.MeshLambertMaterial({color:0x9aa3ab, transparent:true, opacity:0.55}))),
+    gasket: g => g.add(new THREE.Mesh(annulus(P.Rseal, P.R, -2, 2, boltXY.map(([x,y])=>[x,y,P.rh])), new THREE.MeshLambertMaterial({color:0x1d1d1d, transparent:true, opacity:0.85}))),
+    press: g => { for (let x=-P.Rseal+20; x<P.Rseal; x+=40) for (let y=-P.Rseal+20; y<P.Rseal; y+=40){ if (Math.hypot(x,y) > P.Rseal-15) continue;
+      g.add(new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(x,y,-60), 52, 0x2f7fd0, 12, 7)); } },
+    bolts: g => { const wm = new THREE.MeshLambertMaterial({color:0xb8bec4}), bm = new THREE.MeshLambertMaterial({color:0x8a7a3a});
+      boltXY.forEach(([x,y]) => {
+        const w = new THREE.Mesh(annulus(P.rh, P.rw_out, 0, P.tw), wm); w.position.set(x,y,P.t); g.add(w);
+        const sh = new THREE.Mesh(new THREE.CylinderGeometry(4.6,4.6,P.t+30,16), bm); sh.rotation.x = Math.PI/2; sh.position.set(x,y,(P.t-30)/2+P.tw/2); g.add(sh);
+        const hd = new THREE.Mesh(new THREE.CylinderGeometry(9.2,9.2,6.4,6), bm); hd.rotation.x = Math.PI/2; hd.position.set(x,y,P.t+P.tw+3.2); g.add(hd);
+        g.add(new THREE.ArrowHelper(new THREE.Vector3(0,0,-1), new THREE.Vector3(x,y,P.t+60), 44, 0xc9a227, 12, 7)); }); },
+    sector: g => { const pts = [new THREE.Vector3(0,0,P.t+0.5), new THREE.Vector3(P.R,0,P.t+0.5)];
+      for (let i=0;i<=20;i++){ const a=A*i/20; pts.push(new THREE.Vector3(P.R*Math.cos(a),P.R*Math.sin(a),P.t+0.5)); }
+      pts.push(new THREE.Vector3(0,0,P.t+0.5)); g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({color:0xd0453b}))); },
+  };
+  Object.entries(B).forEach(([k,fn]) => { const g = new THREE.Group(); fn(g); g.visible = vis[k]; scene.add(g); groups[k] = {g, label:META[k][0], color:META[k][1]}; });
+  setClip(CLIPS.length > 0);
+}
 
 // ---- colormap ----
 const VIR = [[68,1,84],[72,40,120],[62,74,137],[49,104,142],[38,130,142],[31,158,137],[53,183,121],[109,205,89],[180,222,44],[253,231,37]];
@@ -186,19 +206,20 @@ const OVER = [0.85,0.15,0.55], OPEN = [0.62,0.64,0.66];
 const FIELDS = {
   uz:{label:'Freccia u_z', unit:'mm'},
   vm:{label:'von Mises', unit:'MPa'},
+  s1:{label:'Tensione principale max', unit:'MPa'},
   cp:{label:'Pressione guarnizione', unit:'MPa'},
 };
-let st = {c:0, f:'uz', s:1};
-function fieldVals(c){ return st.f==='uz' ? null : (st.f==='vm' ? c.vma : c.cpa); }
+const arr = c => ({vm:c.vma, s1:c.s1a, cp:c.cpa})[st.f];
+const limitFor = f => MATS[st.m].crit === f ? MATS[st.m].lim : null;
+function pct(a, q){ const s=[...a].sort((x,y)=>x-y); return s[Math.floor((s.length-1)*q)]; }
 function range(c){
   if (st.f==='uz'){ let mn=1e9,mx=-1e9; for(let i=0;i<n;i++){const v=c.Ua[3*i+2]; if(v<mn)mn=v; if(v>mx)mx=v;} return [mn,mx]; }
-  if (st.f==='vm') return [0,YIELD];
-  let mx=0; for(let i=0;i<n;i++) if(c.cpa[i]>mx) mx=c.cpa[i];
-  const s=[...c.cpa].filter(v=>v>0).sort((a,b)=>a-b); const p95 = s.length? s[Math.floor(s.length*0.95)] : 1;
-  return [0, Math.max(0.3, p95)];
+  if (st.f==='cp'){ const s=[...c.cpa].filter(v=>v>0); return [0, Math.max(0.3, s.length? pct(s,0.95) : 1)]; }
+  const L = limitFor(st.f); if (L) return [st.f==='s1' ? Math.min(0, pct(arr(c),0.01)) : 0, L];
+  return [st.f==='s1' ? Math.min(0, pct(arr(c),0.01)) : 0, Math.max(1, pct(arr(c),0.99))];
 }
 function update(){
-  const c = D.cases[st.c], U = c.Ua, sc = st.s, [lo,hi] = range(c), V = fieldVals(c);
+  const c = CFG.cases[st.c], U = c.Ua, sc = st.s, [lo,hi] = range(c), V = arr(c), L = limitFor(st.f);
   for (let k=0;k<NC;k++){
     const {s,rot} = COPIES[k], cr=Math.cos(rot), sr=Math.sin(rot), o=k*n*3;
     for (let i=0;i<n;i++){
@@ -206,56 +227,66 @@ function update(){
       pos[o+3*i]=x*cr-y*sr; pos[o+3*i+1]=x*sr+y*cr; pos[o+3*i+2]=z;
       let rgb;
       if (st.f==='uz') rgb = cmap((U[3*i+2]-lo)/((hi-lo)||1));
-      else if (st.f==='vm') rgb = V[i]>YIELD ? OVER : cmap(V[i]/YIELD);
-      else { const bottom = Math.abs(X[3*i+2])<1e-3 && Math.hypot(X[3*i],X[3*i+1])>=P.Rseal-0.01;
-             rgb = !bottom ? [0.80,0.82,0.84] : (V[i] <= c.p_bar/10 ? OPEN : cmap((V[i])/hi)); }
+      else if (st.f==='cp'){ const bottom = Math.abs(X[3*i+2])<1e-3 && Math.hypot(X[3*i],X[3*i+1])>=P.Rseal-0.01;
+             rgb = !bottom ? [0.80,0.82,0.84] : (V[i] <= c.p_bar/10 ? OPEN : cmap(V[i]/hi)); }
+      else rgb = (L && V[i]>L) ? OVER : cmap((V[i]-lo)/((hi-lo)||1));
       col[o+3*i]=rgb[0]; col[o+3*i+1]=rgb[1]; col[o+3*i+2]=rgb[2];
     }
   }
   geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true;
   geo.computeVertexNormals(); geo.computeBoundingSphere();
-  legend(lo,hi,c); summary(c);
-  if (st.f==='cp' && groups.gasket.g.visible){ groups.gasket.g.visible=false; syncChecks(); }
+  legend(lo,hi,c); summary(c); compare();
+  if (st.f==='cp' && vis.gasket){ vis.gasket=false; groups.gasket.g.visible=false; syncChecks(); }
 }
 function grad(){ return 'linear-gradient(90deg,'+[0,0.25,0.5,0.75,1].map(t=>{const r=cmap(t);return `rgb(${r.map(v=>Math.round(v*255)).join(',')})`;}).join(',')+')'; }
 const fmt = (v,d=1) => (v==null?'—':v.toLocaleString('it-IT',{minimumFractionDigits:d,maximumFractionDigits:d}));
 function legend(lo,hi,c){
-  const F = FIELDS[st.f]; let extra = '';
-  if (st.f==='vm') extra = `<div class="extra"><span class="sw" style="background:rgb(217,38,140)"></span>oltre lo snervamento (${YIELD} MPa)</div>`;
+  const F = FIELDS[st.f], L = limitFor(st.f), M = MATS[st.m]; let extra = '';
+  if (L) extra = `<div class="extra"><span class="sw" style="background:rgb(217,38,140)"></span>oltre ${M.limlabel} (${fmt(L,0)} MPa)</div>`;
   if (st.f==='cp') extra = `<div class="extra"><span class="sw" style="background:rgb(158,163,168)"></span>guarnizione aperta o sotto la pressione del fluido (${fmt(c.p_bar/10,2)} MPa)</div><div class="extra">Visibile ruotando sotto il disco</div>`;
-  document.getElementById('legend').innerHTML = `<div><b>${F.label}</b> [${F.unit}] · ${c.label}</div><div class="bar" style="background:${grad()}"></div><div class="ticks"><span>${fmt(lo,st.f==='uz'?1:1)}</span><span>${fmt((lo+hi)/2)}</span><span>${fmt(hi)}</span></div>${extra}`;
+  document.getElementById('legend').innerHTML = `<div><b>${F.label}</b> [${F.unit}] · ${M.label} ${st.t} mm · ${c.label}</div><div class="bar" style="background:${grad()}"></div><div class="ticks"><span>${fmt(lo)}</span><span>${fmt((lo+hi)/2)}</span><span>${fmt(hi)}</span></div>${extra}`;
 }
+function sealCell(c){ const s=c.summary; if (c.p_bar===0) return '<span class="pill good">montaggio</span>'; return s.seal_r ? '<span class="pill good">tiene</span>' : '<span class="pill bad">perde</span>'; }
 function summary(c){
-  const s = c.summary, seal = !!s.seal_r;
+  const s = c.summary, M = MATS[st.m];
   const sealTxt = s.seal_r ? `anello continuo a tenuta prima dei fori: R ${fmt(s.seal_r[0],0)}–${fmt(s.seal_r[1],0)} mm`
-    : 'nessun anello continuo prima dei fori viti' + (s.seal_runs.length ? ` (solo R ${s.seal_runs.map(r=>fmt(r[0],0)+'–'+fmt(r[1],0)).join(', ')} mm)` : '');
+    : 'nessun anello continuo prima dei fori viti: il fluido arriva ai fori';
   document.getElementById('summary').innerHTML = `
     <tr><td>Freccia al centro</td><td class="v">${fmt(s.uz_c,2)} mm</td></tr>
     <tr><td>Distacco al bordo interno guarnizione (Ø400)</td><td class="v">${fmt(s.lift_in,2)} mm</td></tr>
-    <tr><td>von Mises max (fuori dalle rondelle)</td><td class="v">${fmt(s.vm_plate)} MPa</td></tr>
-    <tr><td>Fattore di sicurezza su ${YIELD} MPa</td><td class="v">${fmt(s.SF,2)}</td></tr>
+    <tr><td>${M.critlabel} max (fuori dalle rondelle)</td><td class="v">${fmt(s.crit_plate)} MPa</td></tr>
+    <tr><td>Fattore di sicurezza su ${M.limlabel} ${fmt(M.lim,0)} MPa</td><td class="v">${fmt(s.SF,2)}</td></tr>
     <tr><td>Forza per vite</td><td class="v">${fmt(s.F_bolt,2)} kN</td></tr>
     <tr><td>Pressione media sotto rondella</td><td class="v">${fmt(s.p_washer)} MPa</td></tr>
-    <tr><td>Tenuta guarnizione<br><span class="note">${sealTxt}</span></td><td class="v">${c.p_bar===0?'<span class="pill good">montaggio</span>':(seal?'<span class="pill good">tiene</span>':'<span class="pill bad">perde dai fori viti</span>')}</td></tr>`;
+    <tr><td>Tenuta guarnizione<br><span class="note">${sealTxt}</span></td><td class="v">${sealCell(c)}</td></tr>`;
+}
+function compare(){
+  const lab = CFG.cases[st.c].label;
+  let rows = '<tr><td><b>Spessore</b></td><td class="v"><b>Freccia</b></td><td class="v"><b>SF</b></td><td class="v"><b>Tenuta</b></td></tr>';
+  thkOf(st.m).forEach(t => { const C = D.configs[st.m+t], c = C.cases.find(x => x.label===lab);
+    rows += `<tr><td>${t} mm${t===st.t?' ◂':''}</td>` + (c ? `<td class="v">${fmt(c.summary.uz_c,1)} mm</td><td class="v">${fmt(c.summary.SF,2)}</td><td class="v">${sealCell(c)}</td>` : '<td class="v" colspan="3">non converge</td>') + '</tr>'; });
+  document.getElementById('compare').innerHTML = rows;
 }
 // sezione: applica il piano di taglio a tutti i materiali
 function setClip(on){ CLIPS.length = 0; if (on) CLIPS.push(clip); scene.traverse(o => { if (o.material) { o.material.clippingPlanes = CLIPS; o.material.clipShadows = true; o.material.needsUpdate = true; } }); }
 document.getElementById('section').onchange = e => { setClip(e.target.checked); if (e.target.checked) setView('side'); };
 const VIEWS = {iso:[[620,-760,520],'3/4 dall\'alto'], bottom:[[520,-640,-560],'Dal basso (lato pressione)'], side:[[0,-1000,40],'Di fianco']};
-function setView(k){ const v=VIEWS[k][0]; camera.position.set(...v); controls.target.set(0,0,k==='side'?0:0); controls.update();
+function setView(k){ const v=VIEWS[k][0]; camera.position.set(...v); controls.target.set(0,0,0); controls.update();
   [...document.getElementById('views').children].forEach(b=>b.setAttribute('aria-pressed', String(b.id==='btn-views-'+k))); }
 // ---- UI ----
 function seg(el, items, cur, onpick){
   el.innerHTML=''; items.forEach(([k,l]) => { const b=document.createElement('button'); b.type='button'; b.id='btn-'+el.id+'-'+k; b.textContent=l; b.setAttribute('aria-pressed', String(k===cur)); b.onclick=()=>{ [...el.children].forEach(x=>x.setAttribute('aria-pressed','false')); b.setAttribute('aria-pressed','true'); onpick(k); }; el.appendChild(b); });
 }
+function thkButtons(){ seg(document.getElementById('thks'), thkOf(st.m).map(t=>[t, t+' mm']), st.t, k=>{ st.t=k; loadConfig(); update(); }); }
+seg(document.getElementById('mats'), Object.entries(MATS).map(([k,v])=>[k,v.label]), st.m, k=>{ st.m=k; if (!thkOf(k).includes(st.t)) st.t = thkOf(k).slice(-1)[0]; thkButtons(); loadConfig(); update(); });
+thkButtons();
 seg(document.getElementById('views'), Object.entries(VIEWS).map(([k,v])=>[k,v[1]]), 'iso', k=>setView(k));
-seg(document.getElementById('cases'), D.cases.map((c,i)=>[i,c.label]), st.c, k=>{st.c=k; update();});
 seg(document.getElementById('fields'), Object.entries(FIELDS).map(([k,v])=>[k,v.label]), st.f, k=>{st.f=k; update(); if (k==='cp') setView('bottom');});
 const lay = document.getElementById('layers');
-Object.entries(groups).forEach(([k,o]) => { const l=document.createElement('label'); l.className='chk';
-  l.innerHTML=`<input type="checkbox" id="lay-${k}" ${o.g.visible?'checked':''}><span class="sw" style="background:${o.color}"></span>${o.label}`;
-  l.querySelector('input').onchange = e => { o.g.visible = e.target.checked; }; lay.appendChild(l); });
-function syncChecks(){ Object.entries(groups).forEach(([k,o]) => { document.getElementById('lay-'+k).checked = o.g.visible; }); }
+Object.entries(META).forEach(([k,m]) => { const l=document.createElement('label'); l.className='chk';
+  l.innerHTML=`<input type="checkbox" id="lay-${k}" ${vis[k]?'checked':''}><span class="sw" style="background:${m[1]}"></span>${m[0]}`;
+  l.querySelector('input').onchange = e => { vis[k] = e.target.checked; groups[k].g.visible = vis[k]; }; lay.appendChild(l); });
+function syncChecks(){ Object.keys(META).forEach(k => { document.getElementById('lay-'+k).checked = vis[k]; }); }
 const scEl = document.getElementById('scale');
 scEl.oninput = () => { st.s = +scEl.value; document.getElementById('sclab').textContent = '×'+st.s; update(); };
 // ---- probe ----
@@ -269,9 +300,9 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (!hit){ pr.hidden = true; return; }
   const f = hit.face, cand=[f.a,f.b,f.c]; let best=cand[0], bd=1e9;
   cand.forEach(v => { const d = hit.point.distanceTo(new THREE.Vector3(pos[3*v],pos[3*v+1],pos[3*v+2])); if (d<bd){bd=d;best=v;} });
-  const i = best % n, c = D.cases[st.c];
+  const i = best % n, c = CFG.cases[st.c];
   const R = Math.hypot(X[3*i],X[3*i+1]), face = Math.abs(X[3*i+2]-P.t)<1e-3 ? 'faccia esterna' : (Math.abs(X[3*i+2])<1e-3 ? 'faccia lato pressione' : 'bordo/foro');
-  pr.innerHTML = `R ${fmt(R,1)} mm · ${face}<br>u_z ${fmt(c.Ua[3*i+2],2)} mm<br>von Mises ${fmt(c.vma[i],1)} MPa` + (face==='faccia lato pressione' && R>=P.Rseal ? `<br>p. guarnizione ${fmt(c.cpa[i],2)} MPa` : '');
+  pr.innerHTML = `R ${fmt(R,1)} mm · ${face}<br>u_z ${fmt(c.Ua[3*i+2],2)} mm<br>von Mises ${fmt(c.vma[i],1)} MPa<br>σ1 ${fmt(c.s1a[i],1)} MPa` + (face==='faccia lato pressione' && R>=P.Rseal ? `<br>p. guarnizione ${fmt(c.cpa[i],2)} MPa` : '');
   pr.hidden = false;
 });
 function resize(){ const w=view.clientWidth, h=view.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
@@ -279,7 +310,7 @@ new ResizeObserver(resize).observe(view);
 function bg(){ renderer.setClearColor(new THREE.Color(css('--canvas')||'#e3e7ea')); }
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', bg);
 new MutationObserver(bg).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-bg(); resize(); update();
+bg(); resize(); loadConfig(); update();
 (function loop(){ controls.update(); renderer.render(scene,camera); requestAnimationFrame(loop); })();
 })();
 </script>

@@ -1,0 +1,751 @@
+<title>__TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Michroma&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: barra navy con schede → foglio navigabile a sinistra, elenco voci a destra; chat a scomparsa. */
+:root{
+  --bg:#F4F7F9; --panel:#FFFFFF; --stage:#E1E8ED; --ink:#1F2C37; --ink2:#566673; --line:#D3DCE2; --sel:#E8F0FF;
+  --navy:#042139; --navy2:#0B2E4C; --on-navy:#FFFFFF; --on-navy2:#B8C8D4;
+  --blue:#144ACD; --vivid:#037BF5; --amber:#EC9818; --amber-ink:#7A4A00; --green:#1E7F4E; --red:#C0392B; --teal:#0B7F72;
+  --datum:#042139; --datum-ink:#FFFFFF; --chip:#EEF2F5; --warn-bg:#FFF4E0; --cta:#042139; --cta-ink:#FFFFFF;
+  --f-display:"Michroma","Space Grotesk",system-ui,sans-serif;
+  --f-body:"Space Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  color-scheme:dark; --bg:#061521; --panel:#0B2233; --stage:#030D15; --ink:#E4ECF1; --ink2:#9DB0BD; --line:#1E3B50; --sel:#12314A;
+  --navy:#02121F; --navy2:#0A2740; --blue:#7FA6FF; --vivid:#5FB0FF; --amber:#F2B04A; --amber-ink:#F7C877; --green:#5FD39A; --red:#F0705F; --teal:#4CC9B6;
+  --datum:#D9E6F0; --datum-ink:#042139; --chip:#14293A; --warn-bg:#2A2212; --cta:#EC9818; --cta-ink:#042139;
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark; --bg:#061521; --panel:#0B2233; --stage:#030D15; --ink:#E4ECF1; --ink2:#9DB0BD; --line:#1E3B50; --sel:#12314A;
+  --navy:#02121F; --navy2:#0A2740; --blue:#7FA6FF; --vivid:#5FB0FF; --amber:#F2B04A; --amber-ink:#F7C877; --green:#5FD39A; --red:#F0705F; --teal:#4CC9B6;
+  --datum:#D9E6F0; --datum-ink:#042139; --chip:#14293A; --warn-bg:#2A2212; --cta:#EC9818; --cta-ink:#042139;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--f-body);display:flex;flex-direction:column;overflow:hidden}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--vivid);outline-offset:2px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--navy)}
+
+/* testata */
+.top{background:var(--navy);color:var(--on-navy);flex:none;padding-top:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top-row{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.kind{font:11px/1.4 var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:#EC9818}
+.top h1{margin:2px 0 0;font-weight:500;font-size:19px;text-wrap:balance}
+.lead{margin:3px 0 0;color:var(--on-navy2);font-size:13.5px;max-width:80ch}
+.top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.counts{display:flex;gap:6px;flex-wrap:wrap}
+.cnt{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:3px 10px 3px 6px;font-size:13px;color:#fff;font-variant-numeric:tabular-nums}
+.btn-chat{display:inline-flex;align-items:center;gap:8px;background:#EC9818;color:#042139;border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}
+.btn-chat:hover{filter:brightness(1.06)}
+.btn-chat .dot{width:8px;height:8px;border-radius:50%;background:#042139}
+.tabs{display:flex;gap:2px;margin-top:12px;overflow-x:auto;scrollbar-width:thin}
+.tab{flex:none;background:none;border:0;border-bottom:3px solid transparent;padding:8px 14px 9px;text-align:left;cursor:pointer;color:var(--on-navy2)}
+.tab .c{display:block;font:10.5px/1.4 var(--f-display);letter-spacing:.06em;text-transform:uppercase}
+.tab .n{display:block;font-size:14px;color:#fff;white-space:nowrap}
+.tab .k{font-size:12px;color:var(--on-navy2);margin-left:6px}
+.tab[aria-selected="true"]{border-bottom-color:#EC9818;background:rgba(255,255,255,.06)}
+.tab[aria-selected="true"] .c{color:#EC9818}
+.rule{height:3px;flex:none;background:linear-gradient(90deg,#144ACD,#037BF5 35%,#2BB673 65%,#EC9818)}
+.preview{flex:none;background:var(--warn-bg);color:var(--amber-ink);font-size:13.5px;padding:7px max(16px,env(safe-area-inset-right,0px)) 7px max(16px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--line)}
+
+main{flex:1;min-height:0;position:relative}
+.view{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,1fr) 420px}
+.view[hidden]{display:none}
+
+/* foglio */
+.stage{position:relative;background:var(--stage);overflow:hidden;min-height:0}
+.vp{position:absolute;inset:0;overflow:hidden;touch-action:none;cursor:grab}
+.vp.drag{cursor:grabbing}
+.cv{position:absolute;left:0;top:0;transform-origin:0 0;background:#fff;box-shadow:0 1px 0 rgba(4,33,57,.25),0 10px 30px rgba(4,33,57,.18)}
+.cv.anim{transition:transform .35s ease}
+.cv img{display:block;width:100%;height:100%;user-select:none;-webkit-user-drag:none;pointer-events:none}
+.mk{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;padding:0;border:0;background:none;cursor:pointer;transform:scale(var(--inv,1));transform-origin:50% 50%}
+.mk i,.sw i,.badge i{position:absolute;inset:0;display:block}
+.mk i{border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45)}
+.mk b,.badge b{position:absolute;inset:0;display:grid;place-items:center;font:600 12px/1 var(--f-body);color:#fff}
+.mk.on{z-index:5}
+.mk.on i{box-shadow:0 0 0 5px rgba(3,123,245,.45),0 1px 4px rgba(0,0,0,.45)}
+.mk.dim{opacity:.35}
+.k-err i{background:#C0392B;border-radius:50%}
+.k-prog i{background:#EC9818;transform:rotate(45deg) scale(.82);border-radius:3px}
+.k-prog b{color:#042139!important}
+.k-quota i{background:#144ACD;border-radius:50%}
+.k-datum i{background:var(--datum);border-radius:2px}
+.k-datum b{color:var(--datum-ink)!important}
+.k-gdt i{background:#0B7F72;border-radius:13px 13px 3px 3px}
+.k-ok i{background:#1E7F4E;border-radius:50%}
+.tools{position:absolute;right:12px;bottom:12px;display:flex;gap:6px;z-index:6}
+.tools button{background:var(--panel);border:1px solid var(--line);border-radius:6px;min-width:38px;height:36px;padding:0 10px;cursor:pointer;font-weight:500}
+.hint{position:absolute;left:12px;bottom:12px;z-index:6;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:12.5px;color:var(--ink2)}
+
+/* colonna laterale */
+.side{background:var(--panel);border-left:1px solid var(--line);overflow:auto;min-height:0}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;padding:12px 16px;border-bottom:1px solid var(--line);font-size:13px;color:var(--ink2);position:sticky;top:0;background:var(--panel);z-index:2}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.sw{position:relative;width:16px;height:16px;flex:none;display:inline-block}
+.sw.k-quota i,.sw.k-err i,.sw.k-ok i{border-radius:50%}
+.sheetinfo{padding:12px 16px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:13px}
+.sheetinfo dt{color:var(--ink2)}
+.sheetinfo dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.grp{padding:12px 16px 6px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink2);border-bottom:1px solid var(--line);background:var(--bg)}
+.items{list-style:none;margin:0;padding:0}
+.it{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);cursor:pointer}
+.it:hover{background:color-mix(in srgb,var(--sel) 50%,transparent)}
+.it.on{background:var(--sel)}
+.badge{position:relative;display:inline-block;width:26px;height:26px;margin-top:1px;flex:none}
+.it h3{margin:0;font-size:15px;font-weight:600;line-height:1.3}
+.it p{margin:5px 0 0;font-size:13.5px;color:var(--ink2)}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:1px 8px;border-radius:999px;border:1px solid var(--line);color:var(--ink2);background:none}
+.tag.lo{border-color:var(--amber);color:var(--amber-ink)}
+a.ref,button.ref{font-size:12.5px;padding:2px 9px;border-radius:999px;border:1px solid var(--vivid);color:var(--vivid);background:none;cursor:pointer;text-decoration:none}
+button.ref:hover{background:color-mix(in srgb,var(--vivid) 12%,transparent)}
+.chg{display:grid;grid-template-columns:auto minmax(0,1fr);gap:3px 10px;margin:8px 0 2px;font-size:13.5px}
+.chg dt{color:var(--ink2)}
+.chg dd{margin:0;overflow-wrap:anywhere}
+.chg .was{color:var(--red);text-decoration:line-through;text-decoration-thickness:1px}
+.chg .now{font-weight:600}
+.status{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-left:auto}
+.status button{border:0;background:none;padding:3px 9px;font-size:12px;cursor:pointer;color:var(--ink2)}
+.status button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.status button:disabled{cursor:default;opacity:.6}
+.empty{padding:20px 16px;color:var(--ink2);font-size:14px}
+
+/* riepilogo */
+.sum{position:absolute;inset:0;overflow:auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.sum-in{max-width:1180px;margin:0 auto;display:grid;gap:20px}
+.sum h2{margin:0 0 10px;font:500 13px/1.4 var(--f-display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:6px;cursor:pointer;text-align:left}
+.card:hover{border-color:var(--vivid)}
+.card .code{font:11px/1.4 var(--f-display);letter-spacing:.06em;color:var(--blue)}
+.card .nm{font-size:16px;font-weight:600}
+.card dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:1px 10px;margin:4px 0 0;font-size:13px}
+.card dt{color:var(--ink2)} .card dd{margin:0;overflow-wrap:anywhere}
+.card .bar{display:flex;gap:10px;font-size:13px;color:var(--ink2);margin-top:4px;flex-wrap:wrap}
+.card .bar span{display:inline-flex;gap:6px;align-items:center;font-variant-numeric:tabular-nums}
+.tbl-wrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:720px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink2);font-weight:600;background:var(--bg)}
+tr.row{cursor:pointer}
+tr.row:hover td{background:var(--sel)}
+.st{font-size:12px;padding:1px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
+.st.accettata{border-color:var(--blue);color:var(--blue)}
+.st.risolta{border-color:var(--green);color:var(--green)}
+.st.scartata{color:var(--ink2);text-decoration:line-through}
+.sources{font-size:13px;color:var(--ink2)}
+
+/* 3D */
+.v3{position:relative;background:var(--stage);min-height:0;overflow:hidden}
+.v3 canvas{display:block;width:100%;height:100%;touch-action:none}
+.v3 .ctrl{position:absolute;left:12px;right:12px;top:12px;display:flex;flex-wrap:wrap;gap:8px;z-index:3;pointer-events:none}
+.v3 .grp3{pointer-events:auto;display:inline-flex;align-items:center;gap:0;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(4,33,57,.12)}
+.v3 .grp3 > span{padding:0 10px;font-size:12px;color:var(--ink2);letter-spacing:.03em}
+.v3 .grp3 button{border:0;border-left:1px solid var(--line);background:none;padding:7px 11px;font-size:13px;cursor:pointer}
+.v3 .grp3 button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.v3 .grp3 input[type=range]{width:min(220px,40vw);margin:0 10px;accent-color:#EC9818}
+.v3 .grp3 output{font-size:12.5px;font-variant-numeric:tabular-nums;min-width:74px;padding-right:10px;color:var(--ink)}
+.v3 .hint3{position:absolute;left:12px;bottom:12px;z-index:3;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:12.5px;color:var(--ink2)}
+.v3 .msg{position:absolute;inset:0;display:grid;place-items:center;color:var(--ink2);font-size:14px;padding:20px;text-align:center}
+.parts{list-style:none;margin:0;padding:0}
+.pt{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 16px;border-bottom:1px solid var(--line);cursor:pointer;font-size:14px}
+.pt.on{background:var(--sel)}
+.pt .c{width:14px;height:14px;border-radius:3px}
+.pt .p{font-size:12px;color:var(--ink2)}
+.pt input{width:16px;height:16px}
+
+/* chat */
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(440px,100%);background:var(--panel);border-left:1px solid var(--line);box-shadow:-12px 0 30px rgba(4,33,57,.18);z-index:20;display:flex;flex-direction:column;transform:translateX(105%);transition:transform .25s ease;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px)}
+.drawer.open{transform:none}
+.dr-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.dr-head h2{margin:0;font-size:16px;font-weight:600}
+.x{background:none;border:1px solid var(--line);border-radius:6px;width:34px;height:34px;cursor:pointer;font-size:18px;line-height:1}
+.dr-tabs{display:flex;border-bottom:1px solid var(--line)}
+.dr-tabs button{flex:1;background:none;border:0;border-bottom:2px solid transparent;padding:10px;cursor:pointer;color:var(--ink2);font-weight:500}
+.dr-tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:#EC9818}
+.dr-body{flex:1;min-height:0;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.msg-u,.msg-a{max-width:92%;padding:9px 12px;border-radius:12px;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg-u{align-self:flex-end;background:var(--navy2);color:#fff;border-bottom-right-radius:4px}
+.msg-a{align-self:flex-start;background:var(--chip);border-bottom-left-radius:4px}
+.msg-a.think{color:var(--ink2);font-style:italic}
+.saved{align-self:flex-start;font-size:12.5px;color:var(--green)}
+.note{font-size:13px;color:var(--ink2);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.composer{border-top:1px solid var(--line);padding:12px 16px;display:grid;gap:8px}
+.composer textarea{width:100%;min-height:64px;max-height:160px;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:var(--bg)}
+.composer .row{display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.composer .hint2{font-size:12px;color:var(--ink2)}
+.send{background:var(--cta);color:var(--cta-ink);border:0;border-radius:8px;padding:8px 16px;font-weight:600;cursor:pointer}
+.send:disabled{opacity:.5;cursor:default}
+.facts{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.fact{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:14px}
+.fact small{display:block;color:var(--ink2);font-size:12px}
+.fact button{background:none;border:0;color:var(--ink2);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px}
+.scrim{position:fixed;inset:0;background:rgba(4,33,57,.35);z-index:19}
+
+@media (max-width: 900px){
+  body{overflow:auto;height:auto}
+  html{height:auto}
+  main{flex:none}
+  .view{position:static;display:block}
+  .stage,.v3{height:62vh;min-height:340px}
+  .side{border-left:0;border-top:1px solid var(--line);overflow:visible}
+  .legend{position:static}
+  .hint{display:none}
+  .sum{position:static}
+}
+@media (prefers-reduced-motion: reduce){.cv.anim,.drawer{transition:none}}
+</style>
+
+<header class="top">
+  <div class="top-row">
+    <div>
+      <div class="kind" id="kind"></div>
+      <h1 id="h1"></h1>
+      <p class="lead" id="lead"></p>
+    </div>
+    <div class="top-actions">
+      <div class="counts" id="counts"></div>
+      <button class="btn-chat" id="openChat" type="button"><span class="dot"></span>Chat e informazioni</button>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+</header>
+<div class="rule"></div>
+<div class="preview" id="preview" hidden></div>
+<main id="main"></main>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" aria-label="Chat e informazioni" aria-hidden="true">
+  <div class="dr-head"><h2>Chat con la revisione</h2><button class="x" id="closeChat" type="button" aria-label="Chiudi">×</button></div>
+  <div class="dr-tabs" role="tablist">
+    <button type="button" role="tab" id="dtChat" aria-selected="true">Chat</button>
+    <button type="button" role="tab" id="dtFacts" aria-selected="false">Informazioni salvate <span id="factCount"></span></button>
+  </div>
+  <div class="dr-body" id="chatBody"></div>
+  <div class="dr-body" id="factsBody" hidden></div>
+  <form class="composer" id="composer">
+    <label for="chatInput" class="hint2" id="composerLabel">Fai una domanda sulla revisione o aggiungi un'informazione che manca nei file (materiale, funzione, pressioni, scelte volute…).</label>
+    <textarea id="chatInput" placeholder="Es. il nipplo Ø20 entra in battuta, l'interferenza è voluta?"></textarea>
+    <div class="row"><span class="hint2" id="chatState"></span><button class="send" id="sendBtn" type="submit">Invia</button></div>
+  </form>
+</aside>
+
+<script type="application/json" id="report-data">__REPORT_JSON__</script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TrackballControls.js"></script>
+<script>
+(() => {
+const R = JSON.parse(document.getElementById("report-data").textContent);
+const $ = (s, el = document) => el.querySelector(s);
+const h = (tag, attrs = {}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === "class") e.className = v;
+    else if (k === "text") e.textContent = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const k of kids.flat()) if (k != null && k !== false) e.append(k.nodeType ? k : document.createTextNode(String(k)));
+  return e;
+};
+const KINDS = {
+  err: "Errore sul disegno", prog: "Modifica di progetto", quota: "Quota o indicazione mancante",
+  datum: "Datum e riferimenti", gdt: "Tolleranze geometriche", ok: "Verificato"
+};
+const KIND_ORDER = ["err", "prog", "quota", "datum", "gdt", "ok"];
+const COUNT_LABEL = { err: ["errore", "errori"], prog: ["modifica", "modifiche"], quota: ["mancanza", "mancanze"], datum: ["datum", "datum"], gdt: ["GD&T", "GD&T"], ok: ["verificato", "verificati"] };
+const STATES = [["aperta", "Aperta"], ["accettata", "Accettata"], ["risolta", "Risolta"], ["scartata", "Scartata"]];
+const F = R.findings || [];
+F.forEach((f, i) => { f.n = f.n || i + 1; });
+const byId = Object.fromEntries(F.map(f => [f.id, f]));
+const sheets = R.sheets || [];
+const sheetById = Object.fromEntries(sheets.map(s => [s.id, s]));
+const statusMap = {};      // id -> state (dal db)
+let canWrite = true;
+
+/* ---------- testata ---------- */
+
+$("#kind").textContent = R.meta.kind || "Revisione CAD";
+$("#h1").textContent = R.meta.title;
+$("#lead").textContent = R.meta.lead || "";
+if (R.meta.preview) { const p = $("#preview"); p.hidden = false; p.textContent = R.meta.preview; }
+function badge(kind, n, cls = "badge") { return h("span", { class: `${cls} k-${kind}` }, h("i"), h("b", { text: n == null ? "" : String(n) })); }
+function renderCounts() {
+  const c = $("#counts"); c.textContent = "";
+  for (const k of KIND_ORDER) {
+    const n = F.filter(f => f.kind === k && statusMap[f.id] !== "scartata").length;
+    if (n) c.append(h("span", { class: "cnt", title: KINDS[k] }, h("span", { class: `sw k-${k}` }, h("i")), `${n} ${COUNT_LABEL[k][n === 1 ? 0 : 1]}`));
+  }
+}
+
+/* ---------- schede ---------- */
+const views = [];
+views.push({ id: "riepilogo", code: "Panoramica", name: "Riepilogo", build: buildSummary });
+for (const s of sheets) views.push({ id: "s-" + s.id.toLowerCase().replace(/[^a-z0-9-]/g, "-"), code: s.code, name: s.name, sheet: s, build: () => buildSheet(s) });
+if (R.model && R.model.instances && R.model.instances.length) views.push({ id: "modello-3d", code: "Assieme", name: "Modello 3D", build: build3D });
+const built = {};
+const tabsEl = $("#tabs");
+for (const v of views) {
+  const n = v.sheet ? F.filter(f => f.sheet === v.sheet.id && f.kind !== "ok").length : (v.id === "modello-3d" ? F.filter(f => (f.parts || []).length && !f.sheet).length : null);
+  const b = h("button", { class: "tab", role: "tab", type: "button", "aria-selected": "false", "data-v": v.id, onclick: () => go(v.id) },
+    h("span", { class: "c", text: v.code }), h("span", { class: "n" }, v.name, n ? h("span", { class: "k", text: `· ${n}` }) : null));
+  tabsEl.append(b);
+}
+function go(id, push = true) {
+  const v = views.find(x => x.id === id) || views[0];
+  for (const b of tabsEl.children) b.setAttribute("aria-selected", b.dataset.v === v.id ? "true" : "false");
+  for (const [k, el] of Object.entries(built)) el.hidden = k !== v.id;
+  if (!built[v.id]) { const el = v.build(); el.dataset.view = v.id; built[v.id] = el; $("#main").append(el); }
+  built[v.id].hidden = false;
+  built[v.id].dispatchEvent(new Event("shown"));
+  if (push && location.hash !== "#" + v.id) history.replaceState(null, "", "#" + v.id);
+  try { localStorage.setItem("dr-tab", v.id); } catch (e) {}
+  return built[v.id];
+}
+window.addEventListener("hashchange", () => go(location.hash.slice(1), false));
+
+/* ---------- elemento voce ---------- */
+const itemEls = {}; // id -> [li,...]
+function statusCtl(f) {
+  const wrap = h("span", { class: "status", role: "group", "aria-label": "Stato" });
+  for (const [k, lab] of STATES) {
+    const b = h("button", { type: "button", "data-s": k, "aria-pressed": (statusMap[f.id] || "aperta") === k ? "true" : "false",
+      onclick: e => { e.stopPropagation(); setStatus(f.id, k); } }, lab);
+    if (!canWrite || !db) b.disabled = true;
+    wrap.append(b);
+  }
+  wrap.dataset.fid = f.id;
+  return wrap;
+}
+function itemEl(f, onClick) {
+  const body = [h("h3", { text: f.title })];
+  if (f.body) body.push(h("p", { text: f.body }));
+  if (f.change && f.change.length) {
+    const dl = h("dl", { class: "chg" });
+    for (const c of f.change) {
+      dl.append(h("dt", { text: c.label || "Modifica" }), h("dd", {}, c.was ? h("span", { class: "was", text: c.was }) : null, c.was ? " → " : null, h("span", { class: "now", text: c.now })));
+    }
+    body.push(dl);
+  }
+  const meta = h("div", { class: "meta" });
+  if (f.confidence && f.confidence !== "alta") meta.append(h("span", { class: "tag lo", title: "Quanto è certa la segnalazione" }, `certezza ${f.confidence}`));
+  if (f.source) meta.append(h("span", { class: "tag", text: f.source }));
+  for (const r of f.refs || []) {
+    const t = byId[r]; if (!t) continue;
+    const where = t.sheet ? (sheetById[t.sheet]?.code || t.sheet) : "assieme";
+    meta.append(h("button", { class: "ref", type: "button", onclick: e => { e.stopPropagation(); focusFinding(r); } }, `→ ${where} · ${t.n}`));
+  }
+  if ((f.parts || []).length && R.model && R.model.instances) {
+    meta.append(h("button", { class: "ref", type: "button", onclick: e => { e.stopPropagation(); show3D(f); } }, "Vedi nel 3D"));
+  }
+  meta.append(statusCtl(f));
+  body.push(meta);
+  const li = h("li", { class: "it", tabindex: "0", "data-fid": f.id, onclick: onClick, onkeydown: e => { if (e.key === "Enter") onClick(); } }, badge(f.kind, f.n), h("div", { style: "min-width:0" }, body));
+  (itemEls[f.id] = itemEls[f.id] || []).push(li);
+  return li;
+}
+function legend(kinds) {
+  const l = h("div", { class: "legend" });
+  for (const k of KIND_ORDER) if (kinds.has(k)) l.append(h("span", {}, h("span", { class: `sw k-${k}` }, h("i")), KINDS[k]));
+  return l;
+}
+
+/* ---------- foglio ---------- */
+const sheetApi = {};
+function buildSheet(s) {
+  const view = h("section", { class: "view", "aria-label": s.code });
+  const stage = h("div", { class: "stage" });
+  const vp = h("div", { class: "vp" }); const cv = h("div", { class: "cv" });
+  const img = h("img", { src: s.img, alt: `Disegno ${s.code}` });
+  cv.append(img); vp.append(cv); stage.append(vp);
+  stage.append(h("div", { class: "hint", text: "Trascina per spostare, rotella o pizzico per ingrandire. Clicca un segnaposto o una voce." }));
+  const tools = h("div", { class: "tools" },
+    h("button", { type: "button", "aria-label": "Riduci", onclick: () => zoomBy(1 / 1.4) }, "−"),
+    h("button", { type: "button", "aria-label": "Ingrandisci", onclick: () => zoomBy(1.4) }, "+"),
+    h("button", { type: "button", onclick: () => fit(true) }, "Tutto il foglio"));
+  stage.append(tools);
+  const W = s.w, H = s.h;
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  let sc = 1, tx = 0, ty = 0, fitSc = 1;
+  const apply = (anim) => { cv.classList.toggle("anim", !!anim); cv.style.transform = `translate(${tx}px,${ty}px) scale(${sc})`; cv.style.setProperty("--inv", (1 / sc).toFixed(4)); };
+  function fit(anim) {
+    const r = vp.getBoundingClientRect(); if (!r.width) return;
+    fitSc = Math.min(r.width / W, r.height / H) * 0.96; sc = fitSc;
+    tx = (r.width - W * sc) / 2; ty = (r.height - H * sc) / 2; apply(anim);
+  }
+  function zoomBy(k, cx, cy) {
+    const r = vp.getBoundingClientRect();
+    cx = cx ?? r.width / 2; cy = cy ?? r.height / 2;
+    const ns = Math.max(fitSc * 0.5, Math.min(fitSc * 12, sc * k));
+    tx = cx - (cx - tx) * ns / sc; ty = cy - (cy - ty) * ns / sc; sc = ns; apply(false);
+  }
+  function center(x, y, zoom) {
+    const r = vp.getBoundingClientRect();
+    sc = Math.max(sc, fitSc * (zoom || 2.6));
+    tx = r.width / 2 - x * W * sc; ty = r.height / 2 - y * H * sc; apply(true);
+  }
+  vp.addEventListener("wheel", e => { e.preventDefault(); const r = vp.getBoundingClientRect(); zoomBy(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+  const pts = new Map(); let last = null, pinch = null;
+  vp.addEventListener("pointerdown", e => { if (e.target.closest(".mk")) return; vp.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); vp.classList.add("drag"); last = [e.clientX, e.clientY]; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); } });
+  vp.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2 && pinch) { const [a, b] = [...pts.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); const r = vp.getBoundingClientRect(); zoomBy(d / pinch, (a[0] + b[0]) / 2 - r.left, (a[1] + b[1]) / 2 - r.top); pinch = d; return; }
+    tx += e.clientX - last[0]; ty += e.clientY - last[1]; last = [e.clientX, e.clientY]; apply(false);
+  });
+  const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!pts.size) vp.classList.remove("drag"); else last = [...pts.values()][0]; };
+  vp.addEventListener("pointerup", up); vp.addEventListener("pointercancel", up);
+  new ResizeObserver(() => fit(false)).observe(vp);
+
+  const side = h("aside", { class: "side", "aria-label": "Voci del foglio" });
+  const fs = F.filter(f => f.sheet === s.id);
+  side.append(legend(new Set(fs.map(f => f.kind))));
+  const tb = s.title_block || {};
+  const info = h("dl", { class: "sheetinfo" });
+  for (const [k, lab] of [["title", "Titolo"], ["material", "Materiale"], ["treatment", "Trattamento"], ["weight", "Peso"], ["scale", "Scala"], ["rev", "Revisione"]]) {
+    if (tb[k]) info.append(h("dt", { text: lab }), h("dd", { text: tb[k] }));
+  }
+  if (info.children.length) side.append(info);
+  const markers = {};
+  const select = (id, fromList) => {
+    for (const [k, m] of Object.entries(markers)) m.classList.toggle("on", k === id);
+    for (const li of side.querySelectorAll(".it")) li.classList.toggle("on", li.dataset.fid === id);
+    const f = byId[id];
+    if (f && f.x != null) center(f.x, f.y);
+    if (!fromList) side.querySelector(`.it[data-fid="${id}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  };
+  if (!fs.length) side.append(h("div", { class: "empty", text: "Nessuna voce su questo foglio." }));
+  for (const k of KIND_ORDER) {
+    const g = fs.filter(f => f.kind === k); if (!g.length) continue;
+    side.append(h("div", { class: "grp", text: KINDS[k] }));
+    const ul = h("ul", { class: "items" });
+    for (const f of g) ul.append(itemEl(f, () => select(f.id, true)));
+    side.append(ul);
+  }
+  for (const f of fs) {
+    if (f.x == null) continue;
+    const m = h("button", { class: `mk k-${f.kind}`, type: "button", title: f.title, "aria-label": `${f.n}. ${f.title}`, style: `left:${f.x * 100}%;top:${f.y * 100}%`, onclick: () => select(f.id) }, h("i"), h("b", { text: f.n }));
+    markers[f.id] = m; cv.append(m);
+  }
+  view.append(stage, side);
+  view.addEventListener("shown", () => requestAnimationFrame(() => fit(false)));
+  sheetApi[s.id] = { select };
+  return view;
+}
+
+/* ---------- riepilogo ---------- */
+function buildSummary() {
+  const v = h("section", { class: "view", style: "display:block" });
+  const box = h("div", { class: "sum" }); const inn = h("div", { class: "sum-in" }); box.append(inn); v.append(box);
+  const tabFor = s => views.find(x => x.sheet && x.sheet.id === s.id).id;
+  if (sheets.length) {
+    const cards = h("div", { class: "cards" });
+    for (const s of sheets) {
+      const tb = s.title_block || {};
+      const fs = F.filter(f => f.sheet === s.id);
+      const bar = h("div", { class: "bar" });
+      for (const k of KIND_ORDER) { const n = fs.filter(f => f.kind === k).length; if (n) bar.append(h("span", {}, h("span", { class: `sw k-${k}` }, h("i")), n)); }
+      if (!fs.length) bar.append("Nessuna voce");
+      const dl = h("dl");
+      for (const [k, lab] of [["material", "Materiale"], ["treatment", "Trattamento"], ["weight", "Peso"]]) if (tb[k]) dl.append(h("dt", { text: lab }), h("dd", { text: tb[k] }));
+      cards.append(h("button", { class: "card", type: "button", onclick: () => go(tabFor(s)) }, h("span", { class: "code", text: s.code }), h("span", { class: "nm", text: s.name }), dl, bar));
+    }
+    inn.append(h("div", {}, h("h2", { text: "Disegni" }), cards));
+  }
+  const tbody = h("tbody");
+  const rows = [...F].sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || a.n - b.n);
+  for (const f of rows) {
+    const where = f.sheet ? sheetById[f.sheet]?.code : "Assieme";
+    const tr = h("tr", { class: "row", tabindex: "0", onclick: () => focusFinding(f.id), onkeydown: e => { if (e.key === "Enter") focusFinding(f.id); } },
+      h("td", {}, badge(f.kind, f.n)), h("td", { text: where }), h("td", {}, h("strong", { text: f.title }), f.body ? h("div", { class: "sources", text: f.body.length > 180 ? f.body.slice(0, 177) + "…" : f.body }) : null),
+      h("td", {}, h("span", { class: "st", "data-st": f.id })));
+    tbody.append(tr);
+  }
+  inn.append(h("div", {}, h("h2", { text: `Tutte le voci (${F.length})` }),
+    h("div", { class: "tbl-wrap" }, h("table", {}, h("thead", {}, h("tr", {}, h("th", { text: "#" }), h("th", { text: "Dove" }), h("th", { text: "Voce" }), h("th", { text: "Stato" }))), tbody))));
+  if (R.meta.sources) inn.append(h("div", {}, h("h2", { text: "File analizzati" }), h("p", { class: "sources", text: R.meta.sources.join(" · ") })));
+  refreshStatus();
+  return v;
+}
+
+/* ---------- 3D ---------- */
+let three = null;
+function build3D() {
+  const view = h("section", { class: "view" });
+  const st = h("div", { class: "v3" });
+  const msg = h("div", { class: "msg", text: "Caricamento del modello…" });
+  st.append(msg);
+  const side = h("aside", { class: "side" });
+  const af = F.filter(f => (f.parts || []).length);
+  side.append(h("div", { class: "grp", text: "Parti" }));
+  const ul = h("ul", { class: "parts" });
+  for (const ins of R.model.instances) {
+    const cb = h("input", { type: "checkbox", checked: true, "aria-label": "Mostra " + ins.name, onclick: e => { e.stopPropagation(); three && three.setVisible(ins.id, e.target.checked); } });
+    ul.append(h("li", { class: "pt", "data-iid": ins.id, onclick: () => three && three.isolate([ins.id]) }, h("span", { class: "c", style: `background:${ins.color}` }), h("span", {}, ins.name, h("span", { class: "p", text: " " + (ins.path.split(" / ").slice(1, -1).join(" / ") || "") })), cb));
+  }
+  side.append(ul);
+  side.append(h("div", { class: "grp", text: "Voci legate al modello" }));
+  const li = h("ul", { class: "items" });
+  for (const f of af) li.append(itemEl(f, () => { three && three.isolate(f.parts); for (const x of side.querySelectorAll(".it")) x.classList.toggle("on", x.dataset.fid === f.id); }));
+  if (!af.length) li.append(h("li", { class: "empty", text: "Nessuna voce collegata a parti dell'assieme." }));
+  side.append(li);
+  side.append(h("div", { class: "tools", style: "position:static;padding:12px 16px" }, h("button", { type: "button", onclick: () => three && three.isolate(null) }, "Mostra tutto")));
+  view.append(st, side);
+  view.addEventListener("shown", () => { if (!three) three = init3D(st, msg); else three.resize(); });
+  return view;
+}
+function b64(s, T) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new T(u.buffer); }
+function init3D(st, msg) {
+  if (!window.THREE || !THREE.TrackballControls) { msg.textContent = "Il visualizzatore 3D non si è caricato. Ricarica la pagina per riprovare."; return null; }
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+  renderer.localClippingEnabled = true;
+  st.append(renderer.domElement); msg.remove();
+  const scene = new THREE.Scene();
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.85));
+  const cam = new THREE.PerspectiveCamera(35, 1, 0.5, 20000);
+  const head = new THREE.DirectionalLight(0xffffff, 0.7); cam.add(head); head.position.set(0.3, 0.6, 1); scene.add(cam);
+  // rotazione libera in tutte le direzioni
+  const ctl = new THREE.TrackballControls(cam, renderer.domElement);
+  ctl.rotateSpeed = 3.2; ctl.zoomSpeed = 1.2; ctl.panSpeed = 0.9; ctl.staticMoving = false; ctl.dynamicDampingFactor = 0.18;
+  const plane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
+  let clipOn = false;
+  const meshes = {};
+  const box = new THREE.Box3();
+  for (const ins of R.model.instances) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(b64(ins.pos, Float32Array), 3));
+    g.setIndex(new THREE.BufferAttribute(b64(ins.idx, Uint32Array), 1));
+    g.computeVertexNormals();
+    const m = new THREE.MeshStandardMaterial({ color: ins.color, metalness: 0.15, roughness: 0.6, transparent: true, opacity: 1, side: THREE.FrontSide });
+    const mesh = new THREE.Mesh(g, m); mesh.userData.id = ins.id;
+    // "tappo" di sezione: le facce interne, a tinta piena, si vedono solo dove il pezzo è tagliato
+    const capCol = new THREE.Color(ins.color).multiplyScalar(0.55);
+    const cap = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: capCol, side: THREE.BackSide, transparent: true, opacity: 1 }));
+    cap.userData.cap = true; cap.raycast = () => {};
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(g, 30), new THREE.LineBasicMaterial({ color: 0x1b2a36, transparent: true, opacity: 0.35 }));
+    mesh.add(cap, edges);
+    scene.add(mesh); meshes[ins.id] = mesh; box.expandByObject(mesh);
+  }
+  const allMats = () => Object.values(meshes).flatMap(m => [m.material, ...m.children.map(c => c.material)]);
+  const center0 = box.getCenter(new THREE.Vector3()), size0 = box.getSize(new THREE.Vector3());
+  const helper = new THREE.PlaneHelper(plane, size0.length() * 0.75, 0xEC9818); helper.visible = false; helper.material.transparent = true; helper.material.opacity = 0.35; scene.add(helper);
+  let lastDir = new THREE.Vector3(1, -1, 0.8).normalize(), lastUp = new THREE.Vector3(0, 0, 1);
+  const frame = (b, dir, up) => {
+    if (dir) lastDir = dir.clone().normalize(); if (up) lastUp = up.clone();
+    const c = b.getCenter(new THREE.Vector3()); const s = b.getSize(new THREE.Vector3()).length() || 100;
+    ctl.target.copy(c); cam.up.copy(lastUp); cam.position.copy(c).add(lastDir.clone().multiplyScalar(s * 1.3));
+    cam.near = s / 300; cam.far = s * 60; cam.updateProjectionMatrix(); cam.lookAt(c); ctl.update();
+  };
+  let current = box.clone();
+  frame(box);
+  function resize() { const r = st.getBoundingClientRect(); if (!r.width) return; renderer.setSize(r.width, r.height, false); renderer.domElement.style.width = r.width + "px"; renderer.domElement.style.height = r.height + "px"; cam.aspect = r.width / r.height; cam.updateProjectionMatrix(); ctl.handleResize(); }
+  new ResizeObserver(resize).observe(st); resize();
+  const loop = () => { requestAnimationFrame(loop); if (!st.closest(".view").hidden) { ctl.update(); renderer.render(scene, cam); } }; loop();
+
+  // comandi: viste e sezione
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const views3 = [["Iso", V(1, -1, 0.8), V(0, 0, 1)], ["Fronte", V(0, -1, 0), V(0, 0, 1)], ["Alto", V(0, 0, 1), V(0, 1, 0)], ["Destra", V(1, 0, 0), V(0, 0, 1)]];
+  const gView = h("div", { class: "grp3", role: "group", "aria-label": "Viste" }, h("span", { text: "Vista" }),
+    ...views3.map(([n, d, u]) => h("button", { type: "button", onclick: () => frame(current, d, u) }, n)),
+    h("button", { type: "button", onclick: () => frame(current) }, "Adatta"));
+  const out = h("output", { text: "" });
+  const range = h("input", { type: "range", min: "0", max: "1000", value: "500", "aria-label": "Posizione del piano di sezione", disabled: true });
+  let axis = null, flip = false;
+  const axBtns = {};
+  const setAxis = (ax) => {
+    axis = ax; clipOn = !!ax;
+    for (const [k, b] of Object.entries(axBtns)) b.setAttribute("aria-pressed", k === (ax || "no") ? "true" : "false");
+    range.disabled = !ax; flipB.disabled = !ax;
+    for (const m of allMats()) { m.clippingPlanes = clipOn ? [plane] : []; m.needsUpdate = true; }
+    helper.visible = clipOn;
+    if (ax) { range.value = "500"; }
+    updatePlane();
+  };
+  const updatePlane = () => {
+    if (!axis) { out.textContent = ""; return; }
+    const i = { X: "x", Y: "y", Z: "z" }[axis];
+    const lo = box.min[i], hi = box.max[i]; const v = lo + (hi - lo) * (+range.value / 1000);
+    const n = V(axis === "X" ? 1 : 0, axis === "Y" ? 1 : 0, axis === "Z" ? 1 : 0).multiplyScalar(flip ? 1 : -1);
+    plane.normal.copy(n); plane.constant = flip ? -v : v;
+    out.textContent = `${axis} = ${v.toFixed(1)} mm`;
+  };
+  range.addEventListener("input", updatePlane);
+  const flipB = h("button", { type: "button", disabled: true, onclick: () => { flip = !flip; updatePlane(); } }, "Inverti");
+  const gCut = h("div", { class: "grp3", role: "group", "aria-label": "Sezione" }, h("span", { text: "Sezione" }),
+    ...["no", "X", "Y", "Z"].map(k => (axBtns[k] = h("button", { type: "button", "aria-pressed": k === "no" ? "true" : "false", onclick: () => setAxis(k === "no" ? null : k) }, k === "no" ? "No" : k))),
+    range, out, flipB);
+  st.append(h("div", { class: "ctrl" }, gView, gCut));
+  st.append(h("div", { class: "hint3", text: "Sinistro: ruota · Destro: sposta · Rotella: zoom · Clic su un pezzo: isola" }));
+
+  // selezione col clic
+  const ray = new THREE.Raycaster(); let down = null;
+  renderer.domElement.addEventListener("pointerdown", e => { down = [e.clientX, e.clientY]; });
+  renderer.domElement.addEventListener("pointerup", e => {
+    if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 4) return;
+    const r = renderer.domElement.getBoundingClientRect();
+    ray.setFromCamera({ x: (e.clientX - r.left) / r.width * 2 - 1, y: -(e.clientY - r.top) / r.height * 2 + 1 }, cam);
+    let hits = ray.intersectObjects(Object.values(meshes).filter(m => m.visible), false);
+    if (clipOn) hits = hits.filter(x => plane.distanceToPoint(x.point) >= 0);
+    api.isolate(hits[0] ? [hits[0].object.userData.id] : null, false);
+  });
+  const api = {
+    resize,
+    setVisible(id, v) { meshes[id].visible = v; },
+    isolate(ids, refit = true) {
+      const on = ids ? new Set(ids) : null;
+      for (const [id, m] of Object.entries(meshes)) {
+        const act = !on || on.has(id);
+        m.material.opacity = act ? 1 : 0.12; m.material.depthWrite = act;
+        m.children[0].material.opacity = act ? 1 : 0.06; m.children[0].material.depthWrite = act;
+        m.children[1].material.opacity = act ? 0.35 : 0.05;
+      }
+      for (const li of document.querySelectorAll(".pt")) li.classList.toggle("on", !!on && on.has(li.dataset.iid));
+      if (refit) { const b = new THREE.Box3(); for (const id of (ids || Object.keys(meshes))) meshes[id] && b.expandByObject(meshes[id]); if (!b.isEmpty()) { current = b; frame(b); } }
+    }
+  };
+  return api;
+}
+function show3D(f) { go("modello-3d"); requestAnimationFrame(() => setTimeout(() => three && three.isolate(f.parts), 60)); }
+
+/* ---------- navigazione tra voci ---------- */
+function focusFinding(id) {
+  const f = byId[id]; if (!f) return;
+  if (f.sheet) {
+    const v = views.find(x => x.sheet && x.sheet.id === f.sheet);
+    go(v.id); requestAnimationFrame(() => setTimeout(() => sheetApi[f.sheet].select(id), 40));
+  } else if ((f.parts || []).length) show3D(f);
+}
+
+/* ---------- stato voci + chat (db / sample) ---------- */
+let db = null, sample = null;
+function refreshStatus() {
+  for (const el of document.querySelectorAll(".status")) {
+    const s = statusMap[el.dataset.fid] || "aperta";
+    for (const b of el.children) { b.setAttribute("aria-pressed", b.dataset.s === s ? "true" : "false"); b.disabled = !db || !canWrite; }
+  }
+  for (const el of document.querySelectorAll("[data-st]")) {
+    const s = statusMap[el.dataset.st] || "aperta"; el.className = "st " + s; el.textContent = STATES.find(x => x[0] === s)[1];
+  }
+  renderCounts();
+}
+async function setStatus(id, s) {
+  if (!db) return;
+  const prev = statusMap[id]; statusMap[id] = s; refreshStatus();
+  try { await db.doc("status/" + id).set({ state: s, title: byId[id]?.title || "", at: Date.now() }); }
+  catch (e) { statusMap[id] = prev; refreshStatus(); if (e && e.code === "invalid_argument") { canWrite = false; refreshStatus(); } setChatState("Non è stato possibile salvare lo stato: " + (e?.code === "quota_exceeded" ? "spazio esaurito." : "riprova più tardi.")); }
+}
+
+const chatBody = $("#chatBody"), factsBody = $("#factsBody");
+let messages = [], facts = [];
+const drawer = $("#drawer"), scrim = $("#scrim");
+function openChat(o) { drawer.classList.toggle("open", o); drawer.setAttribute("aria-hidden", o ? "false" : "true"); scrim.hidden = !o; if (o) setTimeout(() => $("#chatInput").focus(), 200); }
+$("#openChat").onclick = () => openChat(true); $("#closeChat").onclick = () => openChat(false); scrim.onclick = () => openChat(false);
+document.addEventListener("keydown", e => { if (e.key === "Escape" && drawer.classList.contains("open")) openChat(false); });
+function drTab(which) {
+  $("#dtChat").setAttribute("aria-selected", which === "chat" ? "true" : "false");
+  $("#dtFacts").setAttribute("aria-selected", which === "facts" ? "true" : "false");
+  chatBody.hidden = which !== "chat"; factsBody.hidden = which !== "facts";
+  $("#chatInput").placeholder = which === "facts" ? "Es. pressione di esercizio 10 bar; il nipplo HDPE è un acquisto commerciale" : "Es. il nipplo Ø20 entra in battuta, l'interferenza è voluta?";
+  $("#sendBtn").textContent = which === "facts" ? "Salva" : "Invia";
+}
+$("#dtChat").onclick = () => drTab("chat"); $("#dtFacts").onclick = () => drTab("facts");
+function setChatState(t) { $("#chatState").textContent = t || ""; }
+
+function renderChat(pending) {
+  chatBody.textContent = "";
+  chatBody.append(h("div", { class: "note", text: "Le domande ricevono risposta qui, sulla base del report. Quello che scrivi resta salvato con il report: quando chiedi a Claude di rilanciare la revisione, rilegge chat e informazioni e ne tiene conto." }));
+  for (const m of messages) {
+    chatBody.append(h("div", { class: m.role === "user" ? "msg-u" : "msg-a", text: m.text }));
+    if (m.role === "assistant" && m.saved && m.saved.length) chatBody.append(h("div", { class: "saved", text: "Salvato tra le informazioni: " + m.saved.join(" · ") }));
+  }
+  if (pending) chatBody.append(pending);
+  chatBody.scrollTop = chatBody.scrollHeight;
+}
+function renderFacts() {
+  factsBody.textContent = "";
+  factsBody.append(h("div", { class: "note", text: "Informazioni che i file non contengono. Vengono usate alla prossima analisi. Puoi aggiungerle qui o lasciare che la chat le raccolga." }));
+  const ul = h("ul", { class: "facts" });
+  for (const f of facts) ul.append(h("li", { class: "fact" }, h("div", {}, f.text, h("small", { text: (f.source === "chat" ? "dalla chat · " : "") + new Date(f.at).toLocaleDateString("it-IT") })),
+    h("button", { type: "button", "aria-label": "Elimina", title: "Elimina", onclick: () => delFact(f.id) }, "×")));
+  if (!facts.length) ul.append(h("li", { class: "empty", text: "Nessuna informazione salvata." }));
+  factsBody.append(ul);
+  $("#factCount").textContent = facts.length ? `(${facts.length})` : "";
+}
+async function delFact(id) { try { await db.doc("context/" + id).delete(); } catch (e) { setChatState("Eliminazione non riuscita."); } }
+async function addFact(text, source) { if (!db) return; await db.collection("context").add({ text, source, at: Date.now() }); }
+
+function reportDigest() {
+  const fx = F.map(f => `${f.id} [${KINDS[f.kind]}${f.sheet ? " · " + (sheetById[f.sheet]?.code || f.sheet) : " · assieme"}] ${f.title}. ${f.body || ""}${(f.change || []).map(c => ` ${c.label}: ${c.was || ""} → ${c.now}`).join(";")} (stato: ${statusMap[f.id] || "aperta"})`).join("\n");
+  const sh = sheets.map(s => `${s.code} ${s.name}: ${Object.entries(s.title_block || {}).map(([k, v]) => k + "=" + v).join(", ")}`).join("\n");
+  return `PROGETTO: ${R.meta.title}\n\nDISEGNI:\n${sh}\n\nVOCI DEL REPORT:\n${fx}\n\nDATI ESTRATTI (PDF e STEP):\n${(R.context_text || "").slice(0, 60000)}\n\nINFORMAZIONI GIÀ FORNITE DALL'UTENTE:\n${facts.map(f => "- " + f.text).join("\n") || "(nessuna)"}`;
+}
+const RULES = () => `Sei l'assistente di una revisione tecnica di disegni e modelli 3D meccanici (Sizable Energy). Rispondi in italiano, in modo diretto e tecnico, basandoti SOLO sui dati qui sotto; se qualcosa non è nei dati dillo chiaramente, non inventare quote o materiali. Se il messaggio dell'utente contiene informazioni di progetto che i file non contengono (materiali, funzione, pressioni, scelte intenzionali, componenti commerciali, vincoli di fornitore…), elencale come frasi brevi e autonome in "informazioni"; altrimenti lascia la lista vuota. Non puoi modificare il report: se una risposta cambia una voce, suggerisci di rilanciare la revisione.\n\nRispondi SOLO con JSON: {"risposta": "testo", "informazioni": ["…"]}\n\n${reportDigest()}`;
+
+let ctl = null;
+$("#composer").addEventListener("submit", async e => {
+  e.preventDefault();
+  const box = $("#chatInput"); const text = box.value.trim(); if (!text) return;
+  const factsMode = !factsBody.hidden;
+  if (factsMode) {
+    if (!db) { setChatState("Il salvataggio non è disponibile in questa vista."); return; }
+    try { await addFact(text, "manuale"); box.value = ""; setChatState("Informazione salvata."); } catch (err) { setChatState("Salvataggio non riuscito."); }
+    return;
+  }
+  box.value = "";
+  const userMsg = { role: "user", text, at: Date.now() };
+  if (db) { try { await db.collection("chat").add(userMsg); } catch (err) { messages.push(userMsg); } } else messages.push(userMsg);
+  if (!sample) {
+    renderChat(h("div", { class: "msg-a think", text: "Le risposte di Claude non sono disponibili in questa vista. Il messaggio è salvato e verrà letto alla prossima analisi." }));
+    if (db) try { await addFact(text, "chat"); } catch (err) {}
+    return;
+  }
+  const think = h("div", { class: "msg-a think", text: "Sto pensando…" });
+  renderChat(think);
+  $("#sendBtn").disabled = true; setChatState("");
+  ctl = new AbortController();
+  const turns = [{ role: "user", content: RULES() }];
+  for (const m of messages.slice(-12)) turns.push({ role: m.role, content: m.text });
+  if (turns[turns.length - 1]?.content !== text || turns[turns.length - 1].role !== "user") turns.push({ role: "user", content: text });
+  try {
+    const out = await sample.json(turns, { cache: false, signal: ctl.signal });
+    const reply = String(out?.risposta || "").trim() || "Nessuna risposta.";
+    const info = Array.isArray(out?.informazioni) ? out.informazioni.map(String).filter(Boolean).slice(0, 6) : [];
+    const am = { role: "assistant", text: reply, at: Date.now(), saved: info };
+    if (db) {
+      try { await db.collection("chat").add(am); for (const i of info) await addFact(i, "chat"); }
+      catch (err) { messages.push(am); renderChat(); }
+    } else { messages.push(am); renderChat(); }
+  } catch (err) {
+    const m = { not_granted: "Hai scelto di non usare Claude da questa pagina: il messaggio resta salvato per la prossima analisi.", sampling_disabled: "Claude non è disponibile per questo account.", rate_limited: "Troppe richieste ravvicinate: riprova tra poco.", cancelled: "", invalid_json: "La risposta non era leggibile: riprova." }[err?.code] ?? "Risposta non riuscita: riprova.";
+    if (err?.code === "not_granted" || err?.code === "sampling_disabled") sample = null;
+    renderChat(); setChatState(m);
+  } finally { $("#sendBtn").disabled = false; }
+});
+
+async function initRuntime() {
+  if (!window.claude || !window.claude.use) { renderChat(); renderFacts(); setChatState("Chat non disponibile fuori da claude.ai."); refreshStatus(); return; }
+  const [d, s] = await Promise.all([claude.use("db").catch(() => null), claude.use("sample").catch(() => null)]);
+  db = d; sample = s;
+  if (!db) setChatState("Il salvataggio non è disponibile in questa vista.");
+  refreshStatus(); renderChat(); renderFacts();
+  if (!db) return;
+  let loaded = false; const t = setTimeout(() => { if (!loaded) setChatState("I dati salvati non sono ancora raggiungibili."); }, 10000);
+  db.collection("chat").orderBy("at").limit(300).onSnapshot(q => { loaded = true; clearTimeout(t); setChatState(""); messages = q.docs.map(x => x.data()); renderChat(); }, () => setChatState("Chat non disponibile."));
+  db.collection("context").orderBy("at").limit(300).onSnapshot(q => { facts = q.docs.map(x => ({ id: x.id, ...x.data() })); renderFacts(); }, () => {});
+  db.collection("status").onSnapshot(q => { for (const x of q.docs) statusMap[x.id] = x.data().state; refreshStatus(); }, () => {});
+}
+
+/* ---------- avvio ---------- */
+renderCounts(); renderChat(); renderFacts();
+let start = location.hash.slice(1);
+if (!views.some(v => v.id === start)) { try { start = localStorage.getItem("dr-tab") || ""; } catch (e) { start = ""; } }
+if (!views.some(v => v.id === start)) start = views[sheets.length ? 1 : 0].id;
+go(start, false);
+initRuntime();
+})();
+</script>
